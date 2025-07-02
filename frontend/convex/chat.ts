@@ -26,12 +26,12 @@ const coreFilePart = v.object({
   type: v.literal("file"),
   data: v.string(), // url
   mimeType: v.string(),
-})
+});
 
 const coreContent = v.union(
   v.string(),
   v.array(v.union(coreTextPart, coreImagePart, coreFilePart))
-)
+);
 
 const coreMessage = v.object({
   role: v.union(
@@ -40,9 +40,8 @@ const coreMessage = v.object({
     v.literal("assistant"),
     v.literal("tool")
   ),
-  content: coreContent
+  content: coreContent,
 });
-
 
 export const createChat = action({
   args: {
@@ -64,10 +63,10 @@ export const createChat = action({
       apiKey: process.env.GEMINI_KEY,
     });
 
-
     const { text } = await generateText({
       model: google("gemini-2.0-flash-lite"),
-      system: "Generate a four word title that describes the message the user will provider. NO LONGER THAN FOUR WORDS",
+      system:
+        "Generate a four word title that describes the message the user will provider. NO LONGER THAN FOUR WORDS",
       messages: history as CoreMessage[],
     });
 
@@ -125,7 +124,7 @@ export const sendMessage = mutation({
     }
     const user_id = identity.subject;
     const history = args.history;
-    const msg = history[history.length - 1] // most recent message by user
+    const msg = history[history.length - 1]; // most recent message by user
     const model = args.model;
     const conversation_id = args.conversationId;
     console.log("Message: ", msg);
@@ -163,7 +162,6 @@ export const sendMessage = mutation({
   },
 });
 
-
 export const streamWithFiles = internalAction({
   args: {
     messageId: v.id("messages"),
@@ -172,7 +170,6 @@ export const streamWithFiles = internalAction({
   },
   handler: async (ctx, args) => {
     const { messageId, messages, model } = args;
-    
 
     const google = createGoogleGenerativeAI({
       baseURL: "https://generativelanguage.googleapis.com/v1beta",
@@ -187,7 +184,7 @@ export const streamWithFiles = internalAction({
       }),
       system: "You are a professional assistant",
       messages: messages as CoreMessage[],
-    })
+    });
 
     // const { textStream } = streamText({
     //   model: groq(model),
@@ -204,11 +201,10 @@ export const streamWithFiles = internalAction({
     for await (const textPart of textStream) {
       content += textPart;
       chunkCount++;
-      
+
       const now = Date.now();
-      const shouldUpdate = 
-        chunkCount >= CHUNK_BATCH_SIZE || 
-        (now - lastUpdate) >= UPDATE_INTERVAL;
+      const shouldUpdate =
+        chunkCount >= CHUNK_BATCH_SIZE || now - lastUpdate >= UPDATE_INTERVAL;
 
       if (shouldUpdate) {
         await ctx.runMutation(internal.chat.updateMessage, {
@@ -225,7 +221,7 @@ export const streamWithFiles = internalAction({
       messageId,
       content,
     });
-    
+
     await ctx.runMutation(internal.chat.completeMessage, {
       messageId,
     });
@@ -240,11 +236,14 @@ export const streamFullText = internalAction({
   },
   handler: async (ctx, args) => {
     const { messageId, messages, model } = args;
-    
-    const formattedMessages: { role: "system" | "user" | "assistant" | "tool",  content: string }[] = [];
 
-    messages.map(message => {
-      if ((typeof message.content) === "string") {
+    const formattedMessages: {
+      role: "system" | "user" | "assistant" | "tool";
+      content: string;
+    }[] = [];
+
+    messages.map((message) => {
+      if (typeof message.content === "string") {
         formattedMessages.push({
           role: message.role,
           content: message.content,
@@ -252,11 +251,11 @@ export const streamFullText = internalAction({
       } else {
         formattedMessages.push({
           role: message.role,
-          content: message.content[0].type === "text" ? message.content[0].text : "",
+          content:
+            message.content[0].type === "text" ? message.content[0].text : "",
         });
       }
-    })
-
+    });
 
     const groq = createGroq({
       baseURL: "https://api.groq.com/openai/v1",
@@ -269,8 +268,7 @@ export const streamFullText = internalAction({
       model: provider(model),
       system: "You are a professional assistant",
       messages: formattedMessages as CoreMessage[],
-    })
-
+    });
 
     let content = "";
     let chunkCount = 0;
@@ -281,11 +279,10 @@ export const streamFullText = internalAction({
     for await (const textPart of textStream) {
       content += textPart;
       chunkCount++;
-      
+
       const now = Date.now();
-      const shouldUpdate = 
-        chunkCount >= CHUNK_BATCH_SIZE || 
-        (now - lastUpdate) >= UPDATE_INTERVAL;
+      const shouldUpdate =
+        chunkCount >= CHUNK_BATCH_SIZE || now - lastUpdate >= UPDATE_INTERVAL;
 
       if (shouldUpdate) {
         await ctx.runMutation(internal.chat.updateMessage, {
@@ -302,7 +299,7 @@ export const streamFullText = internalAction({
       messageId,
       content,
     });
-    
+
     await ctx.runMutation(internal.chat.completeMessage, {
       messageId,
     });
@@ -319,10 +316,12 @@ export const updateMessage = internalMutation({
     const messageId = args.messageId;
     const content = args.content;
 
-    await ctx.db.patch(messageId, { message: {
-      content: content,
-      role: "assistant"
-    } });
+    await ctx.db.patch(messageId, {
+      message: {
+        content: content,
+        role: "assistant",
+      },
+    });
   },
 });
 
@@ -375,16 +374,14 @@ export const getMessages = query({
     //   .filter((q) => q.eq(q.field("chat_id"), conversation_id))
     //   .collect();
 
-      const optimalMessages = await ctx.db
-        .query("messages")
-        .withIndex("by_chatId", (q) => q.eq("chat_id", conversation_id))
-        .collect();
+    const optimalMessages = await ctx.db
+      .query("messages")
+      .withIndex("by_chatId", (q) => q.eq("chat_id", conversation_id))
+      .collect();
 
     return optimalMessages;
   },
 });
-
-
 
 export const deleteChat = mutation({
   args: { conversationId: v.id("chats") },
@@ -413,23 +410,23 @@ export const deleteChat = mutation({
     for (const invite of invitations) {
       await ctx.db.delete(invite._id);
     }
-    
 
     // delete chat
     await ctx.db.delete(conversation_id);
-  }
-})
-
+  },
+});
 
 export const uploadImages = mutation({
   args: {
-    files: v.array(v.object({
-      name: v.string(),
-      url: v.string(),
-      mimeType: v.string(),
-      size: v.number(),
-    }))
-  }, 
+    files: v.array(
+      v.object({
+        name: v.string(),
+        url: v.string(),
+        mimeType: v.string(),
+        size: v.number(),
+      })
+    ),
+  },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (identity === null) {
@@ -438,7 +435,8 @@ export const uploadImages = mutation({
 
     const user_id = identity.subject;
     const files = args.files;
-    const uploadedFiles: { type: string, data: string, mimeType: string }[] = [];
+    const uploadedFiles: { type: string; data: string; mimeType: string }[] =
+      [];
 
     for (const file of files) {
       await ctx.db.insert("files", {
@@ -446,7 +444,7 @@ export const uploadImages = mutation({
         url: file.url,
         size: file.size,
         authorId: user_id,
-        mimeType: file.mimeType
+        mimeType: file.mimeType,
       });
       uploadedFiles.push({
         type: "file",
@@ -456,9 +454,8 @@ export const uploadImages = mutation({
     }
 
     return uploadedFiles;
-
-  }
-})
+  },
+});
 
 export const createInvitation = mutation({
   args: {
@@ -466,14 +463,16 @@ export const createInvitation = mutation({
     chat_id: v.id("chats"),
     chat_name: v.string(),
   },
-  handler: async(ctx, args) => {
+  handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (identity === null) {
       throw new Error("Not authenticated");
     }
-    
+
     const email = identity.email;
-    if (!email) {throw new Error("Failed to get user email");}
+    if (!email) {
+      throw new Error("Failed to get user email");
+    }
 
     const { recipient_email, chat_id, chat_name } = args;
 
@@ -482,11 +481,10 @@ export const createInvitation = mutation({
       author_email: email,
       chat_id: chat_id,
       chat_name: chat_name,
-      status: "pending"
+      status: "pending",
     });
-  }
+  },
 });
-
 
 export const getPendingInvitations = query({
   args: {},
@@ -495,14 +493,16 @@ export const getPendingInvitations = query({
     if (identity === null) {
       throw new Error("Not authenticated");
     }
-    
+
     const email = identity.email;
-    if (!email) {throw new Error("Failed to get user email");}
+    if (!email) {
+      throw new Error("Failed to get user email");
+    }
 
     // const invites = await ctx.db
     //   .query("invites")
     //   .filter((q) => q.eq(q.field("recipient_email"), email))
-      // .filter((q) => q.eq(q.field("status"), "pending"))
+    // .filter((q) => q.eq(q.field("status"), "pending"))
     //   .collect();
 
     const optimalInvites = await ctx.db
@@ -512,8 +512,8 @@ export const getPendingInvitations = query({
       .collect();
 
     return optimalInvites;
-  }
-})
+  },
+});
 
 export const getAcceptedChats = query({
   args: {},
@@ -522,9 +522,11 @@ export const getAcceptedChats = query({
     if (identity === null) {
       throw new Error("Not authenticated");
     }
-    
+
     const email = identity.email;
-    if (!email) {throw new Error("Failed to get user email");}
+    if (!email) {
+      throw new Error("Failed to get user email");
+    }
 
     // const invites = await ctx.db
     //   .query("invites")
@@ -541,55 +543,55 @@ export const getAcceptedChats = query({
     const chatIds = optimalInvites.map((invite) => invite.chat_id);
     const chats = await ctx.db
       .query("chats")
-      .filter((q) => q.or(...chatIds.map(id => q.eq(q.field("_id"), id))))
+      .filter((q) => q.or(...chatIds.map((id) => q.eq(q.field("_id"), id))))
       .collect();
 
     return chats;
-  }
-})
-
+  },
+});
 
 export const acceptInvitation = mutation({
   args: {
-    invitation_id: v.id("invites")
+    invitation_id: v.id("invites"),
   },
   handler: async (ctx, args) => {
     const { invitation_id } = args;
-    
+
     await ctx.db.patch(invitation_id, { status: "accepted" });
-  }
+  },
 });
 
 export const denyInvitation = mutation({
   args: {
-    invitation_id: v.id("invites")
+    invitation_id: v.id("invites"),
   },
   handler: async (ctx, args) => {
     const { invitation_id } = args;
-    
+
     await ctx.db.delete(invitation_id);
-  }
+  },
 });
 
 export const leaveSharedChat = mutation({
   args: {
-    chat_id: v.id("chats")
+    chat_id: v.id("chats"),
   },
   handler: async (ctx, args) => {
-
     const identity = await ctx.auth.getUserIdentity();
     if (identity === null) {
       throw new Error("Not authenticated");
     }
-    
+
     const email = identity.email;
-    if (!email) {throw new Error("Failed to get user email");}
-    
+    if (!email) {
+      throw new Error("Failed to get user email");
+    }
+
     const { chat_id } = args;
-    
+
     // const invite = await ctx.db
     //   .query("invites")
-      // .filter((q) => q.eq(q.field("chat_id"), chat_id))
+    // .filter((q) => q.eq(q.field("chat_id"), chat_id))
     //   .first();
 
     const optimalInvite = await ctx.db
@@ -598,58 +600,57 @@ export const leaveSharedChat = mutation({
       .filter((q) => q.eq(q.field("chat_id"), chat_id))
       .first();
 
-
     if (!optimalInvite) throw new Error("Invitation not found");
 
-    await ctx.db.delete(optimalInvite._id); 
-  }
-})
-
+    await ctx.db.delete(optimalInvite._id);
+  },
+});
 
 export const branchChat = mutation({
-    args: {
-      title: v.string(),
-      conversation_id: v.id("chats"),
-      message_id: v.id("messages")
-    },
-    handler: async (ctx, args) => {
-      const identity = await ctx.auth.getUserIdentity();
-      if (identity === null) {
-        throw new Error("Not authenticated");
-      }
-      const user_id = identity.subject;
+  args: {
+    title: v.string(),
+    conversation_id: v.id("chats"),
+    message_id: v.id("messages"),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (identity === null) {
+      throw new Error("Not authenticated");
+    }
+    const user_id = identity.subject;
 
-      const { title, conversation_id, message_id } = args;
+    const { title, conversation_id, message_id } = args;
 
-      const new_conversation_id = await ctx.db.insert("chats", {
-        user_id: user_id,
-        title: title
-      });
+    const new_conversation_id = await ctx.db.insert("chats", {
+      user_id: user_id,
+      title: title,
+    });
 
-      const all_messages = await ctx.db
-        .query("messages")
-        .withIndex("by_chatId", (q) => q.eq("chat_id", conversation_id))
-        .order("asc")
-        .collect();
+    const all_messages = await ctx.db
+      .query("messages")
+      .withIndex("by_chatId", (q) => q.eq("chat_id", conversation_id))
+      .order("asc")
+      .collect();
 
-      // find the position of the message on the chronological order
-      const targetIndex = all_messages.findIndex(msg => msg._id === message_id);
+    // find the position of the message on the chronological order
+    const targetIndex = all_messages.findIndex((msg) => msg._id === message_id);
 
-      const messages = targetIndex !== -1
+    const messages =
+      targetIndex !== -1
         ? all_messages.slice(0, targetIndex + 1) // include target message
         : all_messages; // if not found, copy all
 
-      for (const msg of messages) {
-        await ctx.db.insert("messages", {
-          author_id: msg.author_id,
-          chat_id: new_conversation_id,
-          message: msg.message,
-          isComplete: msg.isComplete,
-          model: msg.model
-        });
-      }
+    for (const msg of messages) {
+      await ctx.db.insert("messages", {
+        author_id: msg.author_id,
+        chat_id: new_conversation_id,
+        message: msg.message,
+        isComplete: msg.isComplete,
+        model: msg.model,
+      });
     }
-})
+  },
+});
 
 export const regnerateResponse = mutation({
   args: {
@@ -659,7 +660,6 @@ export const regnerateResponse = mutation({
     messageIdsToDelete: v.array(v.id("messages")),
   },
   handler: async (ctx, args) => {
-
     const { conversationId, history, model, messageIdsToDelete } = args;
 
     // delete all the subsequent messages
@@ -671,7 +671,24 @@ export const regnerateResponse = mutation({
     await ctx.runMutation(api.chat.sendMessage, {
       conversationId: conversationId,
       history: history,
-      model: model
-    })
-  }
-})
+      model: model,
+    });
+  },
+});
+
+export const saveUser = mutation({
+  args: {
+    user_id: v.string(),
+    user_email: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const { user_id, user_email } = args;
+
+    console.log(`Signing up ${user_id}: ${user_email}`);
+
+    await ctx.db.insert("users", {
+      user_id: user_id,
+      email: user_email,
+    });
+  },
+});
