@@ -54,7 +54,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/atoms/tabs";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/atoms/popover";
 import { Card, CardContent, CardFooter, CardHeader } from "@/atoms/card";
-import { SignInButton, SignOutButton } from "@clerk/nextjs";
+import { SignInButton, SignOutButton, useUser } from "@clerk/nextjs";
 import { Textarea } from "@/atoms/textarea";
 import { useTheme } from "next-themes";
 import dynamic from "next/dynamic";
@@ -425,6 +425,7 @@ export function ChatMain({
   const [message, setMessage] = useState("");
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [email, setEmail] = useState<string>("");
+  const { user, isLoaded, isSignedIn } = useUser();
 
   const messages =
     useQuery(
@@ -437,7 +438,10 @@ export function ChatMain({
   const createChat = useAction(api.chat.createChat);
   const uploadImages = useMutation(api.chat.uploadImages);
   const createInvitation = useMutation(api.chat.createInvitation);
-  const useage = useQuery(api.chat.getUseage);
+  const useage = useQuery(
+    api.chat.getUseage,
+    !user || !isLoaded || !isSignedIn ? "skip" : {}
+  );
 
   // const branchChat = useMutation(api.chat.branchChat);
 
