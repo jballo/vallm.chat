@@ -4,7 +4,6 @@ import { NextResponse } from "next/server";
 import { Webhook } from "svix";
 import { fetchMutation } from "convex/nextjs";
 import { api } from "../../../../convex/_generated/api";
-import { Redis } from "@upstash/redis";
 
 export async function POST(req: Request) {
   try {
@@ -43,19 +42,8 @@ export async function POST(req: Request) {
 
     console.log(`Signing up ${userId}: ${email}`);
 
-    // Connection to redis db established
-    const redis = new Redis({
-      url: upstash_url,
-      token: upstash_token,
-    });
-
-    // User message useage set in kv store
-    await redis.hset(`useage:${userId}:messages`, {
-      count: 50,
-    });
-
     // User is saved in the convex db
-    await fetchMutation(api.chat.saveUser, {
+    await fetchMutation(api.chat.initateUser, {
       user_id: userId,
       user_email: email,
     });

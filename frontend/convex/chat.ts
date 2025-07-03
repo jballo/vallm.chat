@@ -10,6 +10,7 @@ import { CoreMessage, generateText, streamText } from "ai";
 import { createGroq } from "@ai-sdk/groq";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { api, internal } from "./_generated/api";
+// import { Redis } from "@upstash/redis";
 
 const coreTextPart = v.object({
   type: v.literal("text"),
@@ -47,6 +48,8 @@ export const createChat = action({
   args: {
     history: v.array(coreMessage),
     model: v.string(),
+    useageId: v.id("useage"),
+    credits: v.number(),
   },
   async handler(ctx, args) {
     const identity = await ctx.auth.getUserIdentity();
@@ -57,6 +60,8 @@ export const createChat = action({
     const user_id = identity.subject;
     const history = args.history;
     const model = args.model;
+    const useageId = args.useageId;
+    const credits = args.credits;
 
     const google = createGoogleGenerativeAI({
       baseURL: "https://generativelanguage.googleapis.com/v1beta",
@@ -77,6 +82,8 @@ export const createChat = action({
       title: text,
       history: history,
       model: model,
+      useageId: useageId,
+      credits: credits,
     });
   },
 });
@@ -87,12 +94,16 @@ export const saveChat = mutation({
     title: v.string(),
     history: v.array(coreMessage),
     model: v.string(),
+    useageId: v.id("useage"),
+    credits: v.number(),
   },
   handler: async (ctx, args) => {
     const user_id = args.userId;
     const generatedTitle = args.title;
     const history = args.history;
     const model = args.model;
+    const useageId = args.useageId;
+    const credits = args.credits;
 
     const chat_id = await ctx.db.insert("chats", {
       user_id: user_id,
@@ -106,6 +117,8 @@ export const saveChat = mutation({
       conversationId: chat_id,
       history: history,
       model: model,
+      useageId: useageId,
+      credits: credits,
     });
   },
 });
@@ -115,6 +128,8 @@ export const sendMessage = mutation({
     conversationId: v.id("chats"),
     history: v.array(coreMessage),
     model: v.string(),
+    useageId: v.id("useage"),
+    credits: v.number(),
   },
   handler: async (ctx, args) => {
     // save user message
@@ -127,6 +142,11 @@ export const sendMessage = mutation({
     const msg = history[history.length - 1]; // most recent message by user
     const model = args.model;
     const conversation_id = args.conversationId;
+    const useageId = args.useageId;
+    const credits = args.credits;
+
+    await ctx.db.patch(useageId, { messagesRemaining: credits - 1 });
+
     console.log("Message: ", msg);
 
     await ctx.db.insert("messages", {
@@ -658,25 +678,38 @@ export const regnerateResponse = mutation({
     history: v.array(coreMessage),
     model: v.string(),
     messageIdsToDelete: v.array(v.id("messages")),
+    useageId: v.id("useage"),
+    credits: v.number(),
   },
   handler: async (ctx, args) => {
-    const { conversationId, history, model, messageIdsToDelete } = args;
+    const {
+      conversationId,
+      history,
+      model,
+      messageIdsToDelete,
+      useageId,
+      credits,
+    } = args;
 
     // delete all the subsequent messages
     for (const id of messageIdsToDelete) {
       await ctx.db.delete(id);
     }
+    // increase credits by 1 so a regnerate doesn't use up 1 credit
+    const newCredit = credits + 1;
 
     // create the regenerated message
     await ctx.runMutation(api.chat.sendMessage, {
       conversationId: conversationId,
       history: history,
       model: model,
+      useageId: useageId,
+      credits: newCredit,
     });
   },
 });
 
-export const saveUser = mutation({
+export const initateUser = mutation({
   args: {
     user_id: v.string(),
     user_email: v.string(),
@@ -690,5 +723,29 @@ export const saveUser = mutation({
       user_id: user_id,
       email: user_email,
     });
+
+    await ctx.db.insert("useage", {
+      user_id: user_id,
+      messagesRemaining: 50,
+    });
+  },
+});
+
+export const getUseage = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (identity === null) {
+      throw new Error("Not authenticated");
+    }
+
+    const userId = identity.subject;
+
+    const remainingCredits = await ctx.db
+      .query("useage")
+      .withIndex("by_user_id", (q) => q.eq("user_id", userId))
+      .unique();
+
+    return remainingCredits;
   },
 });
