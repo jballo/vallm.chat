@@ -67,4 +67,8 @@ export default defineSchema({
   })
     .index("by_recipient_email", ["recipient_email"])
     .index("by_chat_id", ["chat_id"]),
+  useage: defineTable({
+    user_id: v.string(),
+    messagesRemaining: v.number(),
+  }).index("by_user_id", ["user_id"]),
 });
