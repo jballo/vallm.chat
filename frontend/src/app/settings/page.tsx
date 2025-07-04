@@ -7,15 +7,31 @@ import { ArrowBigLeft, Check, Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 export default function Settings() {
   const { user } = useUser();
   const router = useRouter();
   const { theme, setTheme } = useTheme();
+  const [openRouterKey, setOpenRouterKey] = useState<string>("");
+  const [geminiKey, setGeminiKey] = useState<string>("");
+  const [groqKey, setGroqKey] = useState<string>("");
 
   const toggleTheme = () => {
     const newTheme = theme === "dark" ? "light" : "dark";
     setTheme(newTheme);
+  };
+
+  const onSubmitOpenRouterKey = () => {
+    console.log("OpenRouter Key Submitted");
+  };
+
+  const onSubmitGeminiKey = () => {
+    console.log("Gemini Key Submitted");
+  };
+
+  const onSubmitGroqKey = () => {
+    console.log("Groq Key Submitted");
   };
 
   return (
@@ -25,7 +41,7 @@ export default function Settings() {
         <Button onClick={() => router.push("/")}>
           <ArrowBigLeft />
         </Button>
-        <h1 className="text-3xl">Settings</h1>
+        <h1 className="text-3xl font-bold">Settings</h1>
         <Button
           variant="ghost"
           className="p-0 text-md w-6 h-6 flex"
@@ -79,28 +95,49 @@ export default function Settings() {
               <h2 className="text-lg font-bold">API Keys</h2>
               <div className="flex flex-col gap-2.5">
                 <div className="flex flex-col gap-0.5">
-                  <h3>OpenAI API Key</h3>
+                  <div className="flex flex-row justify-between pr-12">
+                    <h3>OpenRouter API Key</h3>
+                    <p>Deeepseek</p>
+                  </div>
                   <div className="flex flex-row gap-1">
-                    <Input type="text" />
-                    <Button variant="ghost">
+                    <Input
+                      type="text"
+                      value={openRouterKey}
+                      onChange={(e) => setOpenRouterKey(e.target.value)}
+                    />
+                    <Button variant="ghost" onClick={onSubmitOpenRouterKey}>
                       <Check />
                     </Button>
                   </div>
                 </div>
                 <div className="flex flex-col gap-0.5">
-                  <h3>Google AI API Key</h3>
+                  <div className="flex flex-row justify-between pr-12">
+                    <h3>Google AI API Key</h3>
+                    <p>Gemini</p>
+                  </div>
                   <div className="flex flex-row gap-1">
-                    <Input type="text" />
-                    <Button variant="ghost">
+                    <Input
+                      type="text"
+                      value={geminiKey}
+                      onChange={(e) => setGeminiKey(e.target.value)}
+                    />
+                    <Button variant="ghost" onClick={onSubmitGeminiKey}>
                       <Check />
                     </Button>
                   </div>
                 </div>
                 <div className="flex flex-col gap-0.5">
-                  <h4>Groq API Key</h4>
+                  <div className="flex flex-row justify-between pr-12">
+                    <h4>Groq API Key</h4>
+                    <p>Llama, Mistral</p>
+                  </div>
                   <div className="flex flex-row gap-1">
-                    <Input type="text" />
-                    <Button variant="ghost">
+                    <Input
+                      type="text"
+                      value={groqKey}
+                      onChange={(e) => setGroqKey(e.target.value)}
+                    />
+                    <Button variant="ghost" onClick={onSubmitGroqKey}>
                       <Check />
                     </Button>
                   </div>
