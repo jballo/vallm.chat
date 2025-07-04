@@ -62,8 +62,8 @@ export default function Settings() {
           )}
         </div>
         {/* Plan Benefits */}
-        <div className="flex flex-col items-center w-full text-primary-foreground">
-          <div className="flex flex-col w-5/12 rounded-xl bg-secondary-foreground p-8">
+        <div className="flex flex-col items-center w-full">
+          <div className="flex flex-col w-5/12 rounded-xl bg-muted p-8">
             <h2 className="text-lg font-bold">Plan Benefits</h2>
             <ul className="list-disc pl-5 marker:text-primary text-lg">
               <li>Inital Free 50 Messages</li>
@@ -73,8 +73,8 @@ export default function Settings() {
           </div>
         </div>
         {/* API Keys */}
-        <div className="flex flex-col w-full items-center text-primary-foreground">
-          <div className="flex flex-col w-5/12 rounded-xl bg-secondary-foreground">
+        <div className="flex flex-col w-full items-center">
+          <div className="flex flex-col w-5/12 rounded-xl bg-muted">
             <div className="flex flex-col w-full p-8 pr-3 gap-2.5">
               <h2 className="text-lg font-bold">API Keys</h2>
               <div className="flex flex-col gap-2.5">
