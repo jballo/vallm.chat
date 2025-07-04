@@ -413,7 +413,13 @@ export function ChatSidebar({
           <div className="p-4 border-t border-[#2a2a2a]">
             <div
               className="flex items-center cursor-pointer hover:bg-[#2a2a2a] rounded-xl p-2 transition-colors duration-200 justify-between"
-              onClick={navigateToLogin}
+              onClick={() => {
+                if (user) {
+                  router.push("/settings");
+                } else {
+                  router.push("/sign-in");
+                }
+              }}
             >
               <Authenticated>
                 <Avatar className="h-10 w-10 mr-3">
