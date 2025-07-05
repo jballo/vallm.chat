@@ -43,7 +43,7 @@ export async function POST(req: Request) {
     console.log(`Signing up ${userId}: ${email}`);
 
     // User is saved in the convex db
-    await fetchMutation(api.chat.initateUser, {
+    await fetchMutation(api.users.initiateUser, {
       user_id: userId,
       user_email: email,
     });

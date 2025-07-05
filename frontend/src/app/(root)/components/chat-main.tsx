@@ -439,7 +439,7 @@ export function ChatMain({
   const uploadImages = useMutation(api.files.uploadImages);
   const createInvitation = useMutation(api.sharing.createInvitation);
   const useage = useQuery(
-    api.chat.getUseage,
+    api.users.getUsage,
     !user || !isLoaded || !isSignedIn ? "skip" : {}
   );
 
