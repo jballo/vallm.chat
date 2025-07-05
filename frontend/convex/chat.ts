@@ -3,39 +3,7 @@ import { action, mutation, query } from "./_generated/server";
 import { CoreMessage, generateText } from "ai";
 import { api } from "./_generated/api";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
-// import { Redis } from "@upstash/redis";
-
-const coreTextPart = v.object({
-  type: v.literal("text"),
-  text: v.string(),
-});
-
-const coreImagePart = v.object({
-  type: v.literal("image"),
-  image: v.string(), // url
-  mimeType: v.optional(v.string()),
-});
-
-const coreFilePart = v.object({
-  type: v.literal("file"),
-  data: v.string(), // url
-  mimeType: v.string(),
-});
-
-const coreContent = v.union(
-  v.string(),
-  v.array(v.union(coreTextPart, coreImagePart, coreFilePart))
-);
-
-const coreMessage = v.object({
-  role: v.union(
-    v.literal("system"),
-    v.literal("user"),
-    v.literal("assistant"),
-    v.literal("tool")
-  ),
-  content: coreContent,
-});
+import { coreMessage } from "./schema/types";
 
 export const createChat = action({
   args: {
