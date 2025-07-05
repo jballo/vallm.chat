@@ -54,9 +54,9 @@ export function ChatList({
   const [searchQuery, setSearchQuery] = useState("");
 
   const conversations = useQuery(api.chat.getChats) || [];
-  const sharedChats = useQuery(api.chat.getAcceptedChats) || [];
+  const sharedChats = useQuery(api.sharing.getAcceptedChats) || [];
   const deleteChat = useMutation(api.chat.deleteChat);
-  const leaveSharedChat = useMutation(api.chat.leaveSharedChat);
+  const leaveSharedChat = useMutation(api.sharing.leaveSharedChat);
 
   useEffect(() => {
     if (activeTab !== "myChats") return;
