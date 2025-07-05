@@ -160,7 +160,7 @@ export function ChatMessages({
   // Memoize the messages rendering
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const branchChat = useMutation(api.chat.branchChat);
-  const regenerateResponse = useMutation(api.chat.regnerateResponse);
+  const regenerateResponse = useMutation(api.messages.regnerateResponse);
 
   useEffect(() => {
     // Use requestAnimationFrame to ensure DOM is updated
@@ -429,12 +429,12 @@ export function ChatMain({
 
   const messages =
     useQuery(
-      api.chat.getMessages,
+      api.messages.getMessages,
       activeChat ? { conversationId: activeChat.id } : "skip"
     ) || [];
 
   // console.log("messages: ", messages);
-  const sendMessage = useMutation(api.chat.sendMessage);
+  const sendMessage = useMutation(api.messages.sendMessage);
   const createChat = useAction(api.chat.createChat);
   const uploadImages = useMutation(api.chat.uploadImages);
   const createInvitation = useMutation(api.chat.createInvitation);
