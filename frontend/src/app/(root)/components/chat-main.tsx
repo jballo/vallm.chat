@@ -436,7 +436,7 @@ export function ChatMain({
   // console.log("messages: ", messages);
   const sendMessage = useMutation(api.messages.sendMessage);
   const createChat = useAction(api.chat.createChat);
-  const uploadImages = useMutation(api.chat.uploadImages);
+  const uploadImages = useMutation(api.files.uploadImages);
   const createInvitation = useMutation(api.sharing.createInvitation);
   const useage = useQuery(
     api.chat.getUseage,
