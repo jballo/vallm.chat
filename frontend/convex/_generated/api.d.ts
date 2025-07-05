@@ -16,6 +16,7 @@ import type {
 import type * as chat from "../chat.js";
 import type * as messages from "../messages.js";
 import type * as schema_types from "../schema/types.js";
+import type * as sharing from "../sharing.js";
 import type * as streaming from "../streaming.js";
 
 /**
@@ -30,6 +31,7 @@ declare const fullApi: ApiFromModules<{
   chat: typeof chat;
   messages: typeof messages;
   "schema/types": typeof schema_types;
+  sharing: typeof sharing;
   streaming: typeof streaming;
 }>;
 export declare const api: FilterApi<

@@ -360,9 +360,9 @@ export function ChatMessages({
 }
 
 export function InvitationList() {
-  const pendingInvitations = useQuery(api.chat.getPendingInvitations);
-  const acceptInvite = useMutation(api.chat.acceptInvitation);
-  const denyInvite = useMutation(api.chat.denyInvitation);
+  const pendingInvitations = useQuery(api.sharing.getPendingInvitations);
+  const acceptInvite = useMutation(api.sharing.acceptInvitation);
+  const denyInvite = useMutation(api.sharing.denyInvitation);
 
   return (
     <>
@@ -437,7 +437,7 @@ export function ChatMain({
   const sendMessage = useMutation(api.messages.sendMessage);
   const createChat = useAction(api.chat.createChat);
   const uploadImages = useMutation(api.chat.uploadImages);
-  const createInvitation = useMutation(api.chat.createInvitation);
+  const createInvitation = useMutation(api.sharing.createInvitation);
   const useage = useQuery(
     api.chat.getUseage,
     !user || !isLoaded || !isSignedIn ? "skip" : {}
