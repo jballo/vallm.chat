@@ -47,13 +47,13 @@ export const sendMessage = mutation({
     const fileSupportedLLMs = ["gemini-2.0-flash"];
 
     if (fileSupportedLLMs.includes(model)) {
-      await ctx.scheduler.runAfter(0, internal.chat.streamWithFiles, {
+      await ctx.scheduler.runAfter(0, internal.streaming.streamWithFiles, {
         messageId: message_id,
         messages: history,
         model: model,
       });
     } else {
-      await ctx.scheduler.runAfter(0, internal.chat.streamFullText, {
+      await ctx.scheduler.runAfter(0, internal.streaming.streamFullText, {
         messageId: message_id,
         messages: history,
         model: model,

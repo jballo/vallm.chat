@@ -16,6 +16,7 @@ import type {
 import type * as chat from "../chat.js";
 import type * as messages from "../messages.js";
 import type * as schema_types from "../schema/types.js";
+import type * as streaming from "../streaming.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -29,6 +30,7 @@ declare const fullApi: ApiFromModules<{
   chat: typeof chat;
   messages: typeof messages;
   "schema/types": typeof schema_types;
+  streaming: typeof streaming;
 }>;
 export declare const api: FilterApi<
   typeof fullApi,
