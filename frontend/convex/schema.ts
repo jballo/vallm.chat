@@ -71,4 +71,16 @@ export default defineSchema({
     user_id: v.string(),
     messagesRemaining: v.number(),
   }).index("by_user_id", ["user_id"]),
+  userEncryptionKeys: defineTable({
+    user_id: v.string(),
+    entropy: v.string(),
+    salt: v.string(),
+  }).index("by_user", ["user_id"]),
+  userApiKeys: defineTable({
+    user_id: v.string(),
+    provider: v.string(),
+    encryptedApiKey: v.string(),
+  })
+    .index("by_user", ["user_id"])
+    .index("by_user_provider", ["user_id", "provider"]),
 });
