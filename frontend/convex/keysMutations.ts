@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { internalMutation, internalQuery } from "./_generated/server";
+import { internalMutation, internalQuery, query } from "./_generated/server";
 
 export const getEncryptionKeys = internalQuery({
   args: {
@@ -84,5 +84,18 @@ export const getEncryptedApiKey = internalQuery({
         q.eq("user_id", user_id).eq("provider", provider)
       )
       .first();
+  },
+});
+
+export const getAllApiKeys = query({
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+
+    if (!identity) throw new Error("User not authenticated");
+
+    return await ctx.db
+      .query("userApiKeys")
+      .withIndex("by_user", (q) => q.eq("user_id", identity.subject))
+      .collect();
   },
 });

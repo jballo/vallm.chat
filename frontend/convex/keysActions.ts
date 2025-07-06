@@ -125,3 +125,37 @@ export const getApiKey = action({
     };
   },
 });
+
+export const simpleDecryptKey = action({
+  args: {
+    encryptedApiKey: v.string(),
+  },
+  handler: async (ctx, args): Promise<{ success: boolean; apiKey: string }> => {
+    const { encryptedApiKey } = args;
+
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    const encryptionKeys = await ctx.runQuery(
+      internal.keysMutations.getEncryptionKeys,
+      {
+        user_id: identity.subject,
+      }
+    );
+
+    if (!encryptionKeys) throw new Error("No encryption keys found");
+
+    const derivedKey = deriveUserKey(
+      encryptionKeys.entropy,
+      encryptionKeys._creationTime,
+      encryptionKeys.salt
+    );
+
+    const decryptedApiKey = decryptApiKey(encryptedApiKey, derivedKey);
+
+    return {
+      success: true,
+      apiKey: decryptedApiKey,
+    };
+  },
+});

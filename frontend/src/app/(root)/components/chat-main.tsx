@@ -442,7 +442,6 @@ export function ChatMain({
     api.users.getUsage,
     !user || !isLoaded || !isSignedIn ? "skip" : {}
   );
-  const testAction = useAction(api.utils.encryption.testingAction);
 
   // const branchChat = useMutation(api.chat.branchChat);
 
@@ -649,17 +648,6 @@ export function ChatMain({
                 >
                   <GitBranch className="h-5 w-5" />
                 </Button> */}
-                <Button
-                  variant="outline"
-                  onClick={async () => {
-                    const temp = await testAction({
-                      randomNum: 3,
-                    });
-                    console.log(temp);
-                  }}
-                >
-                  Testing Action
-                </Button>
                 <Dialog>
                   <DialogTrigger asChild>
                     <Button
