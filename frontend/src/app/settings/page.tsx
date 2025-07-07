@@ -20,7 +20,15 @@ export default function Settings() {
   const [geminiKey, setGeminiKey] = useState<string>("");
   const [groqKey, setGroqKey] = useState<string>("");
 
-  const [availableProviders, setAvailableProviders] = useState<string[]>([]);
+  const [providerAvailability, setProviderAvailability] = useState<{
+    OpenRouter: boolean;
+    Gemini: boolean;
+    Groq: boolean;
+  }>({
+    OpenRouter: false,
+    Gemini: false,
+    Groq: true,
+  });
 
   const getAllApiKeys = useQuery(
     api.keysMutations.getAllApiKeys,
@@ -29,18 +37,16 @@ export default function Settings() {
   const saveApiKey = useAction(api.keysActions.saveApiKey);
   const delteApiKey = useAction(api.keysActions.deleteApiKey);
 
-  console.log("api keys: ", getAllApiKeys);
-
   useEffect(() => {
     if (getAllApiKeys) {
-      getAllApiKeys.map(async (key) => {
-        if (key.provider === "OpenRouter") {
-          setAvailableProviders((prev) => [...prev, "OpenRouter"]);
-        } else if (key.provider === "Gemini") {
-          setAvailableProviders((prev) => [...prev, "Gemini"]);
-        } else if (key.provider == "Groq") {
-          setAvailableProviders((prev) => [...prev, "Groq"]);
-        }
+      const allAvailableProviders: string[] = getAllApiKeys.map(
+        (key) => key.provider
+      );
+
+      setProviderAvailability({
+        OpenRouter: allAvailableProviders.includes("OpenRouter"),
+        Gemini: allAvailableProviders.includes("Gemini"),
+        Groq: allAvailableProviders.includes("Groq"),
       });
     }
   }, [getAllApiKeys]);
@@ -54,9 +60,12 @@ export default function Settings() {
     console.log("OpenRouter Key Submitted");
     if (openRouterKey.length < 1) return;
     if (!user || !isLoaded || !isSignedIn) return;
+    const key = openRouterKey;
+    setOpenRouterKey("");
+
     const result = await saveApiKey({
       provider: "OpenRouter",
-      apiKey: openRouterKey,
+      apiKey: key,
     });
 
     console.log("Result: ", result);
@@ -66,9 +75,12 @@ export default function Settings() {
     console.log("Gemini Key Submitted");
     if (geminiKey.length < 1) return;
     if (!user || !isLoaded || !isSignedIn) return;
+    const key = geminiKey;
+    setGeminiKey("");
+
     const result = await saveApiKey({
       provider: "Gemini",
-      apiKey: geminiKey,
+      apiKey: key,
     });
     console.log("Result: ", result);
   };
@@ -77,10 +89,12 @@ export default function Settings() {
     console.log("Groq Key Submitted");
     if (groqKey.length < 1) return;
     if (!user || !isLoaded || !isSignedIn) return;
+    const key = groqKey;
+    setGroqKey("");
 
     const result = await saveApiKey({
       provider: "Groq",
-      apiKey: groqKey,
+      apiKey: key,
     });
 
     console.log("Result: ", result);
@@ -163,9 +177,7 @@ export default function Settings() {
                     <p>Deeepseek</p>
                   </div>
                   <div className="flex flex-row gap-1 items-center justify-between">
-                    {!availableProviders.some(
-                      (provider) => provider === "OpenRouter"
-                    ) ? (
+                    {!providerAvailability.OpenRouter ? (
                       <Input
                         type="password"
                         value={openRouterKey}
@@ -177,9 +189,7 @@ export default function Settings() {
                     <Button
                       variant="ghost"
                       className={cn("", {
-                        hidden: availableProviders.some(
-                          (provider) => provider === "OpenRouter"
-                        ),
+                        hidden: providerAvailability.OpenRouter,
                       })}
                       onClick={onSubmitOpenRouterKey}
                     >
@@ -188,9 +198,7 @@ export default function Settings() {
                     <Button
                       variant="ghost"
                       className={cn("", {
-                        hidden: !availableProviders.some(
-                          (provider) => provider === "OpenRouter"
-                        ),
+                        hidden: !providerAvailability.OpenRouter,
                       })}
                       onClick={() => deleteKey("OpenRouter")}
                     >
@@ -204,9 +212,7 @@ export default function Settings() {
                     <p>Gemini</p>
                   </div>
                   <div className="flex flex-row gap-1 items-center justify-between">
-                    {!availableProviders.some(
-                      (provider) => provider === "Gemini"
-                    ) ? (
+                    {!providerAvailability.Gemini ? (
                       <Input
                         type="password"
                         value={geminiKey}
@@ -218,9 +224,7 @@ export default function Settings() {
                     <Button
                       variant="ghost"
                       className={cn("", {
-                        hidden: availableProviders.some(
-                          (provider) => provider === "Gemini"
-                        ),
+                        hidden: providerAvailability.Gemini,
                       })}
                       onClick={onSubmitGeminiKey}
                     >
@@ -229,9 +233,7 @@ export default function Settings() {
                     <Button
                       variant="ghost"
                       className={cn("", {
-                        hidden: !availableProviders.some(
-                          (provider) => provider === "Gemini"
-                        ),
+                        hidden: !providerAvailability.Gemini,
                       })}
                       onClick={() => deleteKey("Gemini")}
                     >
@@ -245,9 +247,7 @@ export default function Settings() {
                     <p>Llama, Mistral</p>
                   </div>
                   <div className="flex flex-row gap-1 items-center justify-between">
-                    {!availableProviders.some(
-                      (provider) => provider === "Groq"
-                    ) ? (
+                    {!providerAvailability.Groq ? (
                       <Input
                         type="password"
                         value={groqKey}
@@ -259,9 +259,7 @@ export default function Settings() {
                     <Button
                       variant="ghost"
                       className={cn("", {
-                        hidden: availableProviders.some(
-                          (provider) => provider === "Groq"
-                        ),
+                        hidden: providerAvailability.Groq,
                       })}
                       onClick={onSubmitGroqKey}
                     >
@@ -270,9 +268,7 @@ export default function Settings() {
                     <Button
                       variant="ghost"
                       className={cn("", {
-                        hidden: !availableProviders.some(
-                          (provider) => provider === "Groq"
-                        ),
+                        hidden: !providerAvailability.Groq,
                       })}
                       onClick={() => deleteKey("Groq")}
                     >
