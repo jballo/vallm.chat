@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { api } from "../../../convex/_generated/api";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 export default function Settings() {
   const { user, isLoaded, isSignedIn } = useUser();
@@ -22,12 +23,12 @@ export default function Settings() {
 
   const [providerAvailability, setProviderAvailability] = useState<{
     OpenRouter: boolean;
-    Gemini: boolean;
     Groq: boolean;
+    Gemini: boolean;
   }>({
     OpenRouter: false,
+    Groq: false,
     Gemini: false,
-    Groq: true,
   });
 
   const getAllApiKeys = useQuery(
@@ -45,8 +46,8 @@ export default function Settings() {
 
       setProviderAvailability({
         OpenRouter: allAvailableProviders.includes("OpenRouter"),
-        Gemini: allAvailableProviders.includes("Gemini"),
         Groq: allAvailableProviders.includes("Groq"),
+        Gemini: allAvailableProviders.includes("Gemini"),
       });
     }
   }, [getAllApiKeys]);
@@ -58,7 +59,12 @@ export default function Settings() {
 
   const onSubmitOpenRouterKey = async () => {
     console.log("OpenRouter Key Submitted");
-    if (openRouterKey.length < 1) return;
+    if (openRouterKey.length < 6 || !geminiKey.startsWith("sk-or-")) {
+      toast.error("Invalid OpenRouter Key Format!", {
+        description: "Please provide the appropriate api key.",
+      });
+      return;
+    }
     if (!user || !isLoaded || !isSignedIn) return;
     const key = openRouterKey;
     setOpenRouterKey("");
@@ -73,7 +79,12 @@ export default function Settings() {
 
   const onSubmitGeminiKey = async () => {
     console.log("Gemini Key Submitted");
-    if (geminiKey.length < 1) return;
+    if (geminiKey.length < 1) {
+      toast.error("Invalid Gemini Key Format!", {
+        description: "Please provide the appropriate api key.",
+      });
+      return;
+    }
     if (!user || !isLoaded || !isSignedIn) return;
     const key = geminiKey;
     setGeminiKey("");
@@ -87,7 +98,12 @@ export default function Settings() {
 
   const onSubmitGroqKey = async () => {
     console.log("Groq Key Submitted");
-    if (groqKey.length < 1) return;
+    if (groqKey.length < 4 || !groqKey.startsWith("gsk_")) {
+      toast.error("Invalid Groq Key Format!", {
+        description: "Please provide the appropriate api key.",
+      });
+      return;
+    }
     if (!user || !isLoaded || !isSignedIn) return;
     const key = groqKey;
     setGroqKey("");
@@ -181,6 +197,7 @@ export default function Settings() {
                       <Input
                         type="password"
                         value={openRouterKey}
+                        placeholder="sk-or-..."
                         onChange={(e) => setOpenRouterKey(e.target.value)}
                       />
                     ) : (
@@ -206,41 +223,6 @@ export default function Settings() {
                     </Button>
                   </div>
                 </div>
-                <div className="flex flex-col gap-0.5">
-                  <div className="flex flex-row justify-between pr-12">
-                    <h3>Google AI API Key</h3>
-                    <p>Gemini</p>
-                  </div>
-                  <div className="flex flex-row gap-1 items-center justify-between">
-                    {!providerAvailability.Gemini ? (
-                      <Input
-                        type="password"
-                        value={geminiKey}
-                        onChange={(e) => setGeminiKey(e.target.value)}
-                      />
-                    ) : (
-                      <h3 className="text-md pr-10">Provided...</h3>
-                    )}
-                    <Button
-                      variant="ghost"
-                      className={cn("", {
-                        hidden: providerAvailability.Gemini,
-                      })}
-                      onClick={onSubmitGeminiKey}
-                    >
-                      <Check />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      className={cn("", {
-                        hidden: !providerAvailability.Gemini,
-                      })}
-                      onClick={() => deleteKey("Gemini")}
-                    >
-                      <Trash />
-                    </Button>
-                  </div>
-                </div>
                 <div className="flex flex-col gap-1">
                   <div className="flex flex-row justify-between pr-12">
                     <h4>Groq API Key</h4>
@@ -251,6 +233,7 @@ export default function Settings() {
                       <Input
                         type="password"
                         value={groqKey}
+                        placeholder="gsk_..."
                         onChange={(e) => setGroqKey(e.target.value)}
                       />
                     ) : (
@@ -271,6 +254,42 @@ export default function Settings() {
                         hidden: !providerAvailability.Groq,
                       })}
                       onClick={() => deleteKey("Groq")}
+                    >
+                      <Trash />
+                    </Button>
+                  </div>
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  <div className="flex flex-row justify-between pr-12">
+                    <h3>Google AI API Key</h3>
+                    <p>Gemini</p>
+                  </div>
+                  <div className="flex flex-row gap-1 items-center justify-between">
+                    {!providerAvailability.Gemini ? (
+                      <Input
+                        type="password"
+                        value={geminiKey}
+                        placeholder="..."
+                        onChange={(e) => setGeminiKey(e.target.value)}
+                      />
+                    ) : (
+                      <h3 className="text-md pr-10">Provided...</h3>
+                    )}
+                    <Button
+                      variant="ghost"
+                      className={cn("", {
+                        hidden: providerAvailability.Gemini,
+                      })}
+                      onClick={onSubmitGeminiKey}
+                    >
+                      <Check />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className={cn("", {
+                        hidden: !providerAvailability.Gemini,
+                      })}
+                      onClick={() => deleteKey("Gemini")}
                     >
                       <Trash />
                     </Button>
