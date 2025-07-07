@@ -58,6 +58,7 @@ import { SignInButton, SignOutButton, useUser } from "@clerk/nextjs";
 import { Textarea } from "@/atoms/textarea";
 import { useTheme } from "next-themes";
 import dynamic from "next/dynamic";
+import { toast } from "sonner";
 
 const CreditCount = dynamic(() => import("./CreditCount"), {
   ssr: true,
@@ -122,12 +123,14 @@ interface ChatMainProps {
     id: string;
     name: string;
     icon: string;
+    provider: string;
     capabilities: string[];
   };
   setSelectedModel: (model: {
     id: string;
     name: string;
     icon: string;
+    provider: string;
     capabilities: string[];
   }) => void;
   activeChat: { id: Id<"chats">; title: string } | null;
@@ -443,9 +446,31 @@ export function ChatMain({
     !user || !isLoaded || !isSignedIn ? "skip" : {}
   );
 
+  const getAllApiKeys = useQuery(
+    api.keysMutations.getAllApiKeys,
+    !user || !isLoaded || !isSignedIn ? "skip" : {}
+  );
+
   // const branchChat = useMutation(api.chat.branchChat);
 
   const handleSendMessage = () => {
+    if (!getAllApiKeys) return;
+    const availableProviders: string[] = getAllApiKeys.map(
+      (key) => key.provider
+    );
+
+    if (
+      !availableProviders.some(
+        (provider) => provider === selectedModel.provider
+      )
+    ) {
+      console.log("No provider key provided!");
+      toast.error("No API Key!", {
+        description: "Please provide the appropriate api key.",
+      });
+      return;
+    }
+
     if (isLoading || !isAuthenticated) return;
 
     if (useage === null || useage === undefined || useage.messagesRemaining < 1)

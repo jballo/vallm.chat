@@ -4,6 +4,7 @@ import "./globals.css";
 import ConvexClientProvider from "./ConvexClientProvider";
 import { ClerkProvider } from "@clerk/nextjs";
 import { ThemesProvider } from "@/components/theme-provider";
+import { Toaster } from "@/atoms/sonner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -18,7 +19,8 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "T∞.chat",
   description: "T3 Chat Clone, but INFINITE",
-  icons: "https://414duiw16e.ufs.sh/f/7d2Z7EA8l4q6yvzq3uHf5CtNjYgk640sHVGoqbvWn7QREIUS"
+  icons:
+    "https://414duiw16e.ufs.sh/f/7d2Z7EA8l4q6yvzq3uHf5CtNjYgk640sHVGoqbvWn7QREIUS",
 };
 
 export default function RootLayout({
@@ -39,7 +41,10 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <ClerkProvider>
-            <ConvexClientProvider>{children}</ConvexClientProvider>
+            <ConvexClientProvider>
+              <Toaster position="top-center" richColors closeButton />
+              {children}
+            </ConvexClientProvider>
           </ClerkProvider>
         </ThemesProvider>
       </body>
