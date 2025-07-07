@@ -17,7 +17,7 @@ export default function Settings() {
   const { user, isLoaded, isSignedIn } = useUser();
   const router = useRouter();
   const { theme, setTheme } = useTheme();
-  const [openRouterKey, setOpenRouterKey] = useState<string>("");
+  // const [openRouterKey, setOpenRouterKey] = useState<string>("");
   const [geminiKey, setGeminiKey] = useState<string>("");
   const [groqKey, setGroqKey] = useState<string>("");
 
@@ -57,25 +57,25 @@ export default function Settings() {
     setTheme(newTheme);
   };
 
-  const onSubmitOpenRouterKey = async () => {
-    console.log("OpenRouter Key Submitted");
-    if (openRouterKey.length < 6 || !openRouterKey.startsWith("sk-or-")) {
-      toast.error("Invalid OpenRouter Key Format!", {
-        description: "Please provide the appropriate api key.",
-      });
-      return;
-    }
-    if (!user || !isLoaded || !isSignedIn) return;
-    const key = openRouterKey;
-    setOpenRouterKey("");
+  // const onSubmitOpenRouterKey = async () => {
+  //   console.log("OpenRouter Key Submitted");
+  //   if (openRouterKey.length < 6 || !openRouterKey.startsWith("sk-or-")) {
+  //     toast.error("Invalid OpenRouter Key Format!", {
+  //       description: "Please provide the appropriate api key.",
+  //     });
+  //     return;
+  //   }
+  //   if (!user || !isLoaded || !isSignedIn) return;
+  //   const key = openRouterKey;
+  //   setOpenRouterKey("");
 
-    const result = await saveApiKey({
-      provider: "OpenRouter",
-      apiKey: key,
-    });
+  //   const result = await saveApiKey({
+  //     provider: "OpenRouter",
+  //     apiKey: key,
+  //   });
 
-    console.log("Result: ", result);
-  };
+  //   console.log("Result: ", result);
+  // };
 
   const onSubmitGeminiKey = async () => {
     console.log("Gemini Key Submitted");
@@ -187,7 +187,7 @@ export default function Settings() {
             <div className="flex flex-col w-full p-8 pr-3 gap-2.5">
               <h2 className="text-lg font-bold">API Keys</h2>
               <div className="flex flex-col gap-2.5">
-                <div className="flex flex-col gap-0.5">
+                {/*<div className="flex flex-col gap-0.5">
                   <div className="flex flex-row justify-between pr-12">
                     <h3>OpenRouter API Key</h3>
                     <p>Deeepseek</p>
@@ -222,11 +222,11 @@ export default function Settings() {
                       <Trash />
                     </Button>
                   </div>
-                </div>
+                </div> */}
                 <div className="flex flex-col gap-1">
                   <div className="flex flex-row justify-between pr-12">
                     <h4>Groq API Key</h4>
-                    <p>Llama, Mistral</p>
+                    <p>Llama, Mistral, Deepseek</p>
                   </div>
                   <div className="flex flex-row gap-1 items-center justify-between">
                     {!providerAvailability.Groq ? (
