@@ -59,7 +59,7 @@ export default function Settings() {
 
   const onSubmitOpenRouterKey = async () => {
     console.log("OpenRouter Key Submitted");
-    if (openRouterKey.length < 6 || !geminiKey.startsWith("sk-or-")) {
+    if (openRouterKey.length < 6 || !openRouterKey.startsWith("sk-or-")) {
       toast.error("Invalid OpenRouter Key Format!", {
         description: "Please provide the appropriate api key.",
       });
