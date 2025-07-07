@@ -159,3 +159,48 @@ export const simpleDecryptKey = action({
     };
   },
 });
+
+export const deleteApiKey = action({
+  args: {
+    provider: v.string(),
+  },
+  handler: async (
+    ctx,
+    args
+  ): Promise<{ success: boolean; message: string }> => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    const { provider } = args;
+
+    const encryptedApiKey = await ctx.runQuery(
+      internal.keysMutations.getEncryptedApiKey,
+      {
+        user_id: identity.subject,
+        provider: provider,
+      }
+    );
+
+    if (!encryptedApiKey) {
+      return {
+        success: false,
+        message: `No API key found for ${provider}`,
+      };
+    }
+
+    const result = await ctx.runMutation(internal.keysMutations.deleteApiKey, {
+      keyId: encryptedApiKey._id,
+    });
+
+    if (result.success == false) {
+      return {
+        success: false,
+        message: `Failed to delete ${provider} key`,
+      };
+    }
+    return {
+      success: true,
+      message: `Deleted ${provider} key`,
+    };
+  },
+});

@@ -4,7 +4,7 @@ import { Button } from "@/atoms/button";
 import { Input } from "@/atoms/input";
 import { useUser } from "@clerk/nextjs";
 import { useAction, useQuery } from "convex/react";
-import { ArrowBigLeft, Check, Eye, EyeOff, Moon, Sun } from "lucide-react";
+import { ArrowBigLeft, Check, Moon, Sun, Trash } from "lucide-react";
 import { useTheme } from "next-themes";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -19,17 +19,15 @@ export default function Settings() {
   const [openRouterKey, setOpenRouterKey] = useState<string>("");
   const [geminiKey, setGeminiKey] = useState<string>("");
   const [groqKey, setGroqKey] = useState<string>("");
-  const [openRouterKeyViewable, setOpenRouterKeyViewable] =
-    useState<boolean>(false);
-  const [geminiKeyViewable, setGeminiKeyViewable] = useState<boolean>(false);
-  const [groqKeyViewable, setGroqKeyViewable] = useState<boolean>(false);
+
+  const [availableProviders, setAvailableProviders] = useState<string[]>([]);
 
   const getAllApiKeys = useQuery(
     api.keysMutations.getAllApiKeys,
     !user || !isLoaded || !isSignedIn ? "skip" : {}
   );
   const saveApiKey = useAction(api.keysActions.saveApiKey);
-  const simpleDecryptKey = useAction(api.keysActions.simpleDecryptKey);
+  const delteApiKey = useAction(api.keysActions.deleteApiKey);
 
   console.log("api keys: ", getAllApiKeys);
 
@@ -37,20 +35,11 @@ export default function Settings() {
     if (getAllApiKeys) {
       getAllApiKeys.map(async (key) => {
         if (key.provider === "OpenRouter") {
-          const decryptedKey = await simpleDecryptKey({
-            encryptedApiKey: key.encryptedApiKey,
-          });
-          setOpenRouterKey(decryptedKey.apiKey);
+          setAvailableProviders((prev) => [...prev, "OpenRouter"]);
         } else if (key.provider === "Gemini") {
-          const decryptedKey = await simpleDecryptKey({
-            encryptedApiKey: key.encryptedApiKey,
-          });
-          setGeminiKey(decryptedKey.apiKey);
+          setAvailableProviders((prev) => [...prev, "Gemini"]);
         } else if (key.provider == "Groq") {
-          const decryptedKey = await simpleDecryptKey({
-            encryptedApiKey: key.encryptedApiKey,
-          });
-          setGroqKey(decryptedKey.apiKey);
+          setAvailableProviders((prev) => [...prev, "Groq"]);
         }
       });
     }
@@ -59,18 +48,6 @@ export default function Settings() {
   const toggleTheme = () => {
     const newTheme = theme === "dark" ? "light" : "dark";
     setTheme(newTheme);
-  };
-
-  const onToggleOpenRouterKeyViewable = () => {
-    setOpenRouterKeyViewable((prev) => !prev);
-  };
-
-  const onToggleGeminiKeyViewable = () => {
-    setGeminiKeyViewable((prev) => !prev);
-  };
-
-  const onToggleGroqKeyViewable = () => {
-    setGroqKeyViewable((prev) => !prev);
   };
 
   const onSubmitOpenRouterKey = async () => {
@@ -104,6 +81,17 @@ export default function Settings() {
     const result = await saveApiKey({
       provider: "Groq",
       apiKey: groqKey,
+    });
+
+    console.log("Result: ", result);
+  };
+
+  const deleteKey = async (provider: string) => {
+    if (!provider) return;
+    if (!user || !isSignedIn || !isLoaded) return;
+
+    const result = await delteApiKey({
+      provider: provider,
     });
 
     console.log("Result: ", result);
@@ -174,16 +162,24 @@ export default function Settings() {
                     <h3>OpenRouter API Key</h3>
                     <p>Deeepseek</p>
                   </div>
-                  <div className="flex flex-row gap-1">
-                    <Input
-                      type={openRouterKeyViewable ? "text" : "password"}
-                      value={openRouterKey}
-                      onChange={(e) => setOpenRouterKey(e.target.value)}
-                    />
+                  <div className="flex flex-row gap-1 items-center justify-between">
+                    {!availableProviders.some(
+                      (provider) => provider === "OpenRouter"
+                    ) ? (
+                      <Input
+                        type="password"
+                        value={openRouterKey}
+                        onChange={(e) => setOpenRouterKey(e.target.value)}
+                      />
+                    ) : (
+                      <h3 className="text-md pr-10">Provided...</h3>
+                    )}
                     <Button
                       variant="ghost"
                       className={cn("", {
-                        hidden: !openRouterKeyViewable,
+                        hidden: availableProviders.some(
+                          (provider) => provider === "OpenRouter"
+                        ),
                       })}
                       onClick={onSubmitOpenRouterKey}
                     >
@@ -191,9 +187,14 @@ export default function Settings() {
                     </Button>
                     <Button
                       variant="ghost"
-                      onClick={onToggleOpenRouterKeyViewable}
+                      className={cn("", {
+                        hidden: !availableProviders.some(
+                          (provider) => provider === "OpenRouter"
+                        ),
+                      })}
+                      onClick={() => deleteKey("OpenRouter")}
                     >
-                      {openRouterKeyViewable ? <Eye /> : <EyeOff />}
+                      <Trash />
                     </Button>
                   </div>
                 </div>
@@ -202,48 +203,80 @@ export default function Settings() {
                     <h3>Google AI API Key</h3>
                     <p>Gemini</p>
                   </div>
-                  <div className="flex flex-row gap-1">
-                    <Input
-                      type={geminiKeyViewable ? "text" : "password"}
-                      value={geminiKey}
-                      onChange={(e) => setGeminiKey(e.target.value)}
-                    />
+                  <div className="flex flex-row gap-1 items-center justify-between">
+                    {!availableProviders.some(
+                      (provider) => provider === "Gemini"
+                    ) ? (
+                      <Input
+                        type="password"
+                        value={geminiKey}
+                        onChange={(e) => setGeminiKey(e.target.value)}
+                      />
+                    ) : (
+                      <h3 className="text-md pr-10">Provided...</h3>
+                    )}
                     <Button
                       variant="ghost"
                       className={cn("", {
-                        hidden: !geminiKeyViewable,
+                        hidden: availableProviders.some(
+                          (provider) => provider === "Gemini"
+                        ),
                       })}
                       onClick={onSubmitGeminiKey}
                     >
                       <Check />
                     </Button>
-                    <Button variant="ghost" onClick={onToggleGeminiKeyViewable}>
-                      {geminiKeyViewable ? <Eye /> : <EyeOff />}
+                    <Button
+                      variant="ghost"
+                      className={cn("", {
+                        hidden: !availableProviders.some(
+                          (provider) => provider === "Gemini"
+                        ),
+                      })}
+                      onClick={() => deleteKey("Gemini")}
+                    >
+                      <Trash />
                     </Button>
                   </div>
                 </div>
-                <div className="flex flex-col gap-0.5">
+                <div className="flex flex-col gap-1">
                   <div className="flex flex-row justify-between pr-12">
                     <h4>Groq API Key</h4>
                     <p>Llama, Mistral</p>
                   </div>
-                  <div className="flex flex-row gap-1">
-                    <Input
-                      type={groqKeyViewable ? "text" : "password"}
-                      value={groqKey}
-                      onChange={(e) => setGroqKey(e.target.value)}
-                    />
+                  <div className="flex flex-row gap-1 items-center justify-between">
+                    {!availableProviders.some(
+                      (provider) => provider === "Groq"
+                    ) ? (
+                      <Input
+                        type="password"
+                        value={groqKey}
+                        onChange={(e) => setGroqKey(e.target.value)}
+                      />
+                    ) : (
+                      <h3 className="text-md pr-10">Provided...</h3>
+                    )}
                     <Button
                       variant="ghost"
                       className={cn("", {
-                        hidden: !groqKeyViewable,
+                        hidden: availableProviders.some(
+                          (provider) => provider === "Groq"
+                        ),
                       })}
                       onClick={onSubmitGroqKey}
                     >
                       <Check />
                     </Button>
-                    <Button variant="ghost" onClick={onToggleGroqKeyViewable}>
-                      {groqKeyViewable ? <Eye /> : <EyeOff />}
+                    <Button
+                      variant="ghost"
+                      className={cn("", {
+                        hidden: !availableProviders.some(
+                          (provider) => provider === "Groq"
+                        ),
+                      })}
+                      onClick={() => deleteKey("Groq")}
+                    >
+                      <Trash />
                     </Button>
                   </div>
                 </div>

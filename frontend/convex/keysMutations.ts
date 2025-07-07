@@ -99,3 +99,25 @@ export const getAllApiKeys = query({
       .collect();
   },
 });
+
+export const deleteApiKey = internalMutation({
+  args: {
+    keyId: v.id("userApiKeys"),
+  },
+  handler: async (ctx, args) => {
+    const { keyId } = args;
+
+    await ctx.db.delete(keyId);
+
+    const isDeleted = await ctx.db.get(keyId);
+
+    if (isDeleted !== null) {
+      return {
+        success: false,
+      };
+    }
+    return {
+      success: true,
+    };
+  },
+});
