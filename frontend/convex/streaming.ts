@@ -1,3 +1,4 @@
+"use node";
 import { v } from "convex/values";
 import { internalAction } from "./_generated/server";
 import { coreMessage } from "./schema/types";
@@ -5,19 +6,36 @@ import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { CoreMessage, streamText } from "ai";
 import { internal } from "./_generated/api";
 import { createGroq } from "@ai-sdk/groq";
+import { decryptApiKey, deriveUserKey } from "./utils/encryption";
 
 export const streamWithFiles = internalAction({
   args: {
     messageId: v.id("messages"),
     messages: v.array(coreMessage),
     model: v.string(),
+    encryptedApiKey: v.string(),
+    entropy: v.string(),
+    salt: v.string(),
+    createdAt: v.number(),
   },
   handler: async (ctx, args) => {
-    const { messageId, messages, model } = args;
+    const {
+      messageId,
+      messages,
+      model,
+      encryptedApiKey,
+      entropy,
+      salt,
+      createdAt,
+    } = args;
+
+    const derivedKey = deriveUserKey(entropy, createdAt, salt);
+
+    const decryptedKey = decryptApiKey(encryptedApiKey, derivedKey);
 
     const google = createGoogleGenerativeAI({
       baseURL: "https://generativelanguage.googleapis.com/v1beta",
-      apiKey: process.env.GEMINI_KEY,
+      apiKey: decryptedKey,
     });
 
     const provider = google;
@@ -77,9 +95,25 @@ export const streamFullText = internalAction({
     messageId: v.id("messages"),
     messages: v.array(coreMessage),
     model: v.string(),
+    encryptedApiKey: v.string(),
+    entropy: v.string(),
+    salt: v.string(),
+    createdAt: v.number(),
   },
   handler: async (ctx, args) => {
-    const { messageId, messages, model } = args;
+    const {
+      messageId,
+      messages,
+      model,
+      encryptedApiKey,
+      entropy,
+      salt,
+      createdAt,
+    } = args;
+
+    const derivedKey = deriveUserKey(entropy, createdAt, salt);
+
+    const decryptedKey = decryptApiKey(encryptedApiKey, derivedKey);
 
     const formattedMessages: {
       role: "system" | "user" | "assistant" | "tool";
@@ -103,7 +137,7 @@ export const streamFullText = internalAction({
 
     const groq = createGroq({
       baseURL: "https://api.groq.com/openai/v1",
-      apiKey: process.env.GROQ_KEY,
+      apiKey: decryptedKey,
     });
 
     const provider = groq;

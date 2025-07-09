@@ -10,6 +10,7 @@ export const sendMessage = mutation({
     model: v.string(),
     useageId: v.id("useage"),
     credits: v.number(),
+    encryptedApiKey: v.string(),
   },
   handler: async (ctx, args) => {
     // save user message
@@ -24,6 +25,9 @@ export const sendMessage = mutation({
     const conversation_id = args.conversationId;
     const useageId = args.useageId;
     const credits = args.credits;
+    const encryptedApiKey = args.encryptedApiKey;
+
+    if (encryptedApiKey === null) throw new Error("No appropriate api key");
 
     await ctx.db.patch(useageId, { messagesRemaining: credits - 1 });
 
@@ -46,17 +50,50 @@ export const sendMessage = mutation({
     });
     const fileSupportedLLMs = ["gemini-2.0-flash"];
 
+    // let encryptedApiKey = null;
+
+    // if (model === "gemini-2.0-flash") {
+    //   encryptedApiKey = await ctx.db
+    //     .query("userApiKeys")
+    //     .withIndex("by_user", (q) => q.eq("user_id", identity.subject))
+    //     .filter((q) => q.eq(q.field("provider"), "Gemini"))
+    //     .first();
+    // } else {
+    //   encryptedApiKey = await ctx.db
+    //     .query("userApiKeys")
+    //     .withIndex("by_user", (q) => q.eq("user_id", identity.subject))
+    //     .filter((q) => q.eq(q.field("provider"), "Groq"))
+    //     .first();
+    // }
+
+    // if (encryptedApiKey === null) throw new Error("No appropriate api key");
+
+    const encryptionKeys = await ctx.db
+      .query("userEncryptionKeys")
+      .withIndex("by_user", (q) => q.eq("user_id", identity.subject))
+      .first();
+
+    if (encryptionKeys == null) throw new Error("No encryption keys provided");
+
     if (fileSupportedLLMs.includes(model)) {
       await ctx.scheduler.runAfter(0, internal.streaming.streamWithFiles, {
         messageId: message_id,
         messages: history,
         model: model,
+        encryptedApiKey: encryptedApiKey,
+        entropy: encryptionKeys.entropy,
+        salt: encryptionKeys.salt,
+        createdAt: encryptionKeys._creationTime,
       });
     } else {
       await ctx.scheduler.runAfter(0, internal.streaming.streamFullText, {
         messageId: message_id,
         messages: history,
         model: model,
+        encryptedApiKey: encryptedApiKey,
+        entropy: encryptionKeys.entropy,
+        salt: encryptionKeys.salt,
+        createdAt: encryptionKeys._creationTime,
       });
     }
   },
@@ -119,8 +156,13 @@ export const regnerateResponse = mutation({
     messageIdsToDelete: v.array(v.id("messages")),
     useageId: v.id("useage"),
     credits: v.number(),
+    encryptedApiKey: v.string(),
   },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+
+    if (!identity) throw new Error("Not authenticated");
+
     const {
       conversationId,
       history,
@@ -128,6 +170,7 @@ export const regnerateResponse = mutation({
       messageIdsToDelete,
       useageId,
       credits,
+      encryptedApiKey,
     } = args;
 
     // delete all the subsequent messages
@@ -144,6 +187,7 @@ export const regnerateResponse = mutation({
       model: model,
       useageId: useageId,
       credits: newCredit,
+      encryptedApiKey: encryptedApiKey,
     });
   },
 });

@@ -4,54 +4,50 @@ import { Button } from "@/atoms/button";
 import { Input } from "@/atoms/input";
 import { useUser } from "@clerk/nextjs";
 import { useAction, useQuery } from "convex/react";
-import { ArrowBigLeft, Check, Eye, EyeOff, Moon, Sun } from "lucide-react";
+import { ArrowBigLeft, Check, Moon, Sun, Trash } from "lucide-react";
 import { useTheme } from "next-themes";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { api } from "../../../convex/_generated/api";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 export default function Settings() {
   const { user, isLoaded, isSignedIn } = useUser();
   const router = useRouter();
   const { theme, setTheme } = useTheme();
-  const [openRouterKey, setOpenRouterKey] = useState<string>("");
+  // const [openRouterKey, setOpenRouterKey] = useState<string>("");
   const [geminiKey, setGeminiKey] = useState<string>("");
   const [groqKey, setGroqKey] = useState<string>("");
-  const [openRouterKeyViewable, setOpenRouterKeyViewable] =
-    useState<boolean>(false);
-  const [geminiKeyViewable, setGeminiKeyViewable] = useState<boolean>(false);
-  const [groqKeyViewable, setGroqKeyViewable] = useState<boolean>(false);
+
+  const [providerAvailability, setProviderAvailability] = useState<{
+    OpenRouter: boolean;
+    Groq: boolean;
+    Gemini: boolean;
+  }>({
+    OpenRouter: false,
+    Groq: false,
+    Gemini: false,
+  });
 
   const getAllApiKeys = useQuery(
     api.keysMutations.getAllApiKeys,
     !user || !isLoaded || !isSignedIn ? "skip" : {}
   );
   const saveApiKey = useAction(api.keysActions.saveApiKey);
-  const simpleDecryptKey = useAction(api.keysActions.simpleDecryptKey);
-
-  console.log("api keys: ", getAllApiKeys);
+  const delteApiKey = useAction(api.keysActions.deleteApiKey);
 
   useEffect(() => {
     if (getAllApiKeys) {
-      getAllApiKeys.map(async (key) => {
-        if (key.provider === "OpenRouter") {
-          const decryptedKey = await simpleDecryptKey({
-            encryptedApiKey: key.encryptedApiKey,
-          });
-          setOpenRouterKey(decryptedKey.apiKey);
-        } else if (key.provider === "Gemini") {
-          const decryptedKey = await simpleDecryptKey({
-            encryptedApiKey: key.encryptedApiKey,
-          });
-          setGeminiKey(decryptedKey.apiKey);
-        } else if (key.provider == "Groq") {
-          const decryptedKey = await simpleDecryptKey({
-            encryptedApiKey: key.encryptedApiKey,
-          });
-          setGroqKey(decryptedKey.apiKey);
-        }
+      const allAvailableProviders: string[] = getAllApiKeys.map(
+        (key) => key.provider
+      );
+
+      setProviderAvailability({
+        OpenRouter: allAvailableProviders.includes("OpenRouter"),
+        Groq: allAvailableProviders.includes("Groq"),
+        Gemini: allAvailableProviders.includes("Gemini"),
       });
     }
   }, [getAllApiKeys]);
@@ -61,49 +57,71 @@ export default function Settings() {
     setTheme(newTheme);
   };
 
-  const onToggleOpenRouterKeyViewable = () => {
-    setOpenRouterKeyViewable((prev) => !prev);
-  };
+  // const onSubmitOpenRouterKey = async () => {
+  //   console.log("OpenRouter Key Submitted");
+  //   if (openRouterKey.length < 6 || !openRouterKey.startsWith("sk-or-")) {
+  //     toast.error("Invalid OpenRouter Key Format!", {
+  //       description: "Please provide the appropriate api key.",
+  //     });
+  //     return;
+  //   }
+  //   if (!user || !isLoaded || !isSignedIn) return;
+  //   const key = openRouterKey;
+  //   setOpenRouterKey("");
 
-  const onToggleGeminiKeyViewable = () => {
-    setGeminiKeyViewable((prev) => !prev);
-  };
+  //   const result = await saveApiKey({
+  //     provider: "OpenRouter",
+  //     apiKey: key,
+  //   });
 
-  const onToggleGroqKeyViewable = () => {
-    setGroqKeyViewable((prev) => !prev);
-  };
-
-  const onSubmitOpenRouterKey = async () => {
-    console.log("OpenRouter Key Submitted");
-    if (openRouterKey.length < 1) return;
-    if (!user || !isLoaded || !isSignedIn) return;
-    const result = await saveApiKey({
-      provider: "OpenRouter",
-      apiKey: openRouterKey,
-    });
-
-    console.log("Result: ", result);
-  };
+  //   console.log("Result: ", result);
+  // };
 
   const onSubmitGeminiKey = async () => {
     console.log("Gemini Key Submitted");
-    if (geminiKey.length < 1) return;
+    if (geminiKey.length < 1) {
+      toast.error("Invalid Gemini Key Format!", {
+        description: "Please provide the appropriate api key.",
+      });
+      return;
+    }
     if (!user || !isLoaded || !isSignedIn) return;
+    const key = geminiKey;
+    setGeminiKey("");
+
     const result = await saveApiKey({
       provider: "Gemini",
-      apiKey: geminiKey,
+      apiKey: key,
     });
     console.log("Result: ", result);
   };
 
   const onSubmitGroqKey = async () => {
     console.log("Groq Key Submitted");
-    if (groqKey.length < 1) return;
+    if (groqKey.length < 4 || !groqKey.startsWith("gsk_")) {
+      toast.error("Invalid Groq Key Format!", {
+        description: "Please provide the appropriate api key.",
+      });
+      return;
+    }
     if (!user || !isLoaded || !isSignedIn) return;
+    const key = groqKey;
+    setGroqKey("");
 
     const result = await saveApiKey({
       provider: "Groq",
-      apiKey: groqKey,
+      apiKey: key,
+    });
+
+    console.log("Result: ", result);
+  };
+
+  const deleteKey = async (provider: string) => {
+    if (!provider) return;
+    if (!user || !isSignedIn || !isLoaded) return;
+
+    const result = await delteApiKey({
+      provider: provider,
     });
 
     console.log("Result: ", result);
@@ -169,21 +187,26 @@ export default function Settings() {
             <div className="flex flex-col w-full p-8 pr-3 gap-2.5">
               <h2 className="text-lg font-bold">API Keys</h2>
               <div className="flex flex-col gap-2.5">
-                <div className="flex flex-col gap-0.5">
+                {/*<div className="flex flex-col gap-0.5">
                   <div className="flex flex-row justify-between pr-12">
                     <h3>OpenRouter API Key</h3>
                     <p>Deeepseek</p>
                   </div>
-                  <div className="flex flex-row gap-1">
-                    <Input
-                      type={openRouterKeyViewable ? "text" : "password"}
-                      value={openRouterKey}
-                      onChange={(e) => setOpenRouterKey(e.target.value)}
-                    />
+                  <div className="flex flex-row gap-1 items-center justify-between">
+                    {!providerAvailability.OpenRouter ? (
+                      <Input
+                        type="password"
+                        value={openRouterKey}
+                        placeholder="sk-or-..."
+                        onChange={(e) => setOpenRouterKey(e.target.value)}
+                      />
+                    ) : (
+                      <h3 className="text-md pr-10">Provided...</h3>
+                    )}
                     <Button
                       variant="ghost"
                       className={cn("", {
-                        hidden: !openRouterKeyViewable,
+                        hidden: providerAvailability.OpenRouter,
                       })}
                       onClick={onSubmitOpenRouterKey}
                     >
@@ -191,9 +214,48 @@ export default function Settings() {
                     </Button>
                     <Button
                       variant="ghost"
-                      onClick={onToggleOpenRouterKeyViewable}
+                      className={cn("", {
+                        hidden: !providerAvailability.OpenRouter,
+                      })}
+                      onClick={() => deleteKey("OpenRouter")}
                     >
-                      {openRouterKeyViewable ? <Eye /> : <EyeOff />}
+                      <Trash />
+                    </Button>
+                  </div>
+                </div> */}
+                <div className="flex flex-col gap-1">
+                  <div className="flex flex-row justify-between pr-12">
+                    <h4>Groq API Key</h4>
+                    <p>Llama, Mistral, Deepseek</p>
+                  </div>
+                  <div className="flex flex-row gap-1 items-center justify-between">
+                    {!providerAvailability.Groq ? (
+                      <Input
+                        type="password"
+                        value={groqKey}
+                        placeholder="gsk_..."
+                        onChange={(e) => setGroqKey(e.target.value)}
+                      />
+                    ) : (
+                      <h3 className="text-md pr-10">Provided...</h3>
+                    )}
+                    <Button
+                      variant="ghost"
+                      className={cn("", {
+                        hidden: providerAvailability.Groq,
+                      })}
+                      onClick={onSubmitGroqKey}
+                    >
+                      <Check />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className={cn("", {
+                        hidden: !providerAvailability.Groq,
+                      })}
+                      onClick={() => deleteKey("Groq")}
+                    >
+                      <Trash />
                     </Button>
                   </div>
                 </div>
@@ -202,48 +264,34 @@ export default function Settings() {
                     <h3>Google AI API Key</h3>
                     <p>Gemini</p>
                   </div>
-                  <div className="flex flex-row gap-1">
-                    <Input
-                      type={geminiKeyViewable ? "text" : "password"}
-                      value={geminiKey}
-                      onChange={(e) => setGeminiKey(e.target.value)}
-                    />
+                  <div className="flex flex-row gap-1 items-center justify-between">
+                    {!providerAvailability.Gemini ? (
+                      <Input
+                        type="password"
+                        value={geminiKey}
+                        placeholder="..."
+                        onChange={(e) => setGeminiKey(e.target.value)}
+                      />
+                    ) : (
+                      <h3 className="text-md pr-10">Provided...</h3>
+                    )}
                     <Button
                       variant="ghost"
                       className={cn("", {
-                        hidden: !geminiKeyViewable,
+                        hidden: providerAvailability.Gemini,
                       })}
                       onClick={onSubmitGeminiKey}
                     >
                       <Check />
                     </Button>
-                    <Button variant="ghost" onClick={onToggleGeminiKeyViewable}>
-                      {geminiKeyViewable ? <Eye /> : <EyeOff />}
-                    </Button>
-                  </div>
-                </div>
-                <div className="flex flex-col gap-0.5">
-                  <div className="flex flex-row justify-between pr-12">
-                    <h4>Groq API Key</h4>
-                    <p>Llama, Mistral</p>
-                  </div>
-                  <div className="flex flex-row gap-1">
-                    <Input
-                      type={groqKeyViewable ? "text" : "password"}
-                      value={groqKey}
-                      onChange={(e) => setGroqKey(e.target.value)}
-                    />
                     <Button
                       variant="ghost"
                       className={cn("", {
-                        hidden: !groqKeyViewable,
+                        hidden: !providerAvailability.Gemini,
                       })}
-                      onClick={onSubmitGroqKey}
+                      onClick={() => deleteKey("Gemini")}
                     >
-                      <Check />
-                    </Button>
-                    <Button variant="ghost" onClick={onToggleGroqKeyViewable}>
-                      {groqKeyViewable ? <Eye /> : <EyeOff />}
+                      <Trash />
                     </Button>
                   </div>
                 </div>
