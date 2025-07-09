@@ -46,17 +46,50 @@ export const sendMessage = mutation({
     });
     const fileSupportedLLMs = ["gemini-2.0-flash"];
 
+    let encryptedApiKey = null;
+
+    if (model === "gemini-2.0-flash") {
+      encryptedApiKey = await ctx.db
+        .query("userApiKeys")
+        .withIndex("by_user", (q) => q.eq("user_id", identity.subject))
+        .filter((q) => q.eq(q.field("provider"), "Gemini"))
+        .first();
+    } else {
+      encryptedApiKey = await ctx.db
+        .query("userApiKeys")
+        .withIndex("by_user", (q) => q.eq("user_id", identity.subject))
+        .filter((q) => q.eq(q.field("provider"), "Groq"))
+        .first();
+    }
+
+    if (encryptedApiKey === null) throw new Error("No appropriate api key");
+
+    const encryptionKeys = await ctx.db
+      .query("userEncryptionKeys")
+      .withIndex("by_user", (q) => q.eq("user_id", identity.subject))
+      .first();
+
+    if (encryptionKeys == null) throw new Error("No encryption keys provided");
+
     if (fileSupportedLLMs.includes(model)) {
       await ctx.scheduler.runAfter(0, internal.streaming.streamWithFiles, {
         messageId: message_id,
         messages: history,
         model: model,
+        encryptedApiKey: encryptedApiKey.encryptedApiKey,
+        entropy: encryptionKeys.entropy,
+        salt: encryptionKeys.salt,
+        createdAt: encryptionKeys._creationTime,
       });
     } else {
       await ctx.scheduler.runAfter(0, internal.streaming.streamFullText, {
         messageId: message_id,
         messages: history,
         model: model,
+        encryptedApiKey: encryptedApiKey.encryptedApiKey,
+        entropy: encryptionKeys.entropy,
+        salt: encryptionKeys.salt,
+        createdAt: encryptionKeys._creationTime,
       });
     }
   },
