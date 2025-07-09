@@ -152,6 +152,15 @@ interface ChatMessagesProps {
       }
     | null
     | undefined;
+  allAvailableApiKeys:
+    | {
+        _id: Id<"userApiKeys">;
+        _creationTime: number;
+        user_id: string;
+        provider: string;
+        encryptedApiKey: string;
+      }[]
+    | undefined;
 }
 
 export function ChatMessages({
@@ -159,6 +168,7 @@ export function ChatMessages({
   activeChat,
   activeTab,
   useage,
+  allAvailableApiKeys,
 }: ChatMessagesProps) {
   // Memoize the messages rendering
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -190,6 +200,16 @@ export function ChatMessages({
 
   const regenerateMessage = async (msg: QueryMessage) => {
     if (useage === null || useage === undefined) return;
+    if (!allAvailableApiKeys) return;
+    const selectedProvider =
+      msg.model === "gemini-2.0-flash" ? "Gemini" : "Groq";
+
+    const encryptedApiKey = allAvailableApiKeys.find(
+      (key) => key.provider == selectedProvider
+    );
+
+    if (encryptedApiKey === undefined) return;
+
     console.log("msg: ", msg);
     console.log("msg role: ", msg.message.role);
 
@@ -239,6 +259,7 @@ export function ChatMessages({
       messageIdsToDelete: messageIdsToDelete,
       useageId: useage._id,
       credits: useage.messagesRemaining,
+      encryptedApiKey: encryptedApiKey.encryptedApiKey,
     });
   };
 
@@ -476,6 +497,16 @@ export function ChatMain({
     if (useage === null || useage === undefined || useage.messagesRemaining < 1)
       return;
 
+    // const encryptedApiKey: string | undefined = getAllApiKeys.find(
+    //   (key) => key.provider === selectedModel.provider
+    // );
+
+    const encryptedApiKey = getAllApiKeys.find(
+      (key) => key.provider === selectedModel.provider
+    );
+
+    if (!encryptedApiKey) return;
+
     if (!activeChat) {
       if (uploadedFiles.length > 0) {
         const userMsg: CoreTextPart = {
@@ -513,6 +544,7 @@ export function ChatMain({
           model: selectedModel.id,
           useageId: useage._id,
           credits: useage.messagesRemaining,
+          encryptedApiKey: encryptedApiKey.encryptedApiKey,
         });
       } else {
         const msg: CoreMessage = {
@@ -525,6 +557,7 @@ export function ChatMain({
           model: selectedModel.id,
           useageId: useage._id,
           credits: useage.messagesRemaining,
+          encryptedApiKey: encryptedApiKey.encryptedApiKey,
         });
       }
     } else {
@@ -579,6 +612,7 @@ export function ChatMain({
           model: selectedModel.id,
           useageId: useage._id,
           credits: useage.messagesRemaining,
+          encryptedApiKey: encryptedApiKey.encryptedApiKey,
         });
       } else {
         const msg: CoreMessage = {
@@ -610,6 +644,7 @@ export function ChatMain({
           model: selectedModel.id,
           useageId: useage._id,
           credits: useage.messagesRemaining,
+          encryptedApiKey: encryptedApiKey.encryptedApiKey,
         });
       }
     }
@@ -820,6 +855,7 @@ export function ChatMain({
               activeChat={activeChat}
               activeTab={activeTab}
               useage={useage}
+              allAvailableApiKeys={getAllApiKeys}
             />
           ) : (
             <div className="flex-1 overflow-y-auto p-6">

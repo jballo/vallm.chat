@@ -11,6 +11,7 @@ export const createChat = action({
     model: v.string(),
     useageId: v.id("useage"),
     credits: v.number(),
+    encryptedApiKey: v.string(),
   },
   async handler(ctx, args) {
     const identity = await ctx.auth.getUserIdentity();
@@ -23,6 +24,7 @@ export const createChat = action({
     const model = args.model;
     const useageId = args.useageId;
     const credits = args.credits;
+    const encryptedApiKey = args.encryptedApiKey;
 
     const google = createGoogleGenerativeAI({
       baseURL: "https://generativelanguage.googleapis.com/v1beta",
@@ -45,6 +47,7 @@ export const createChat = action({
       model: model,
       useageId: useageId,
       credits: credits,
+      encryptedApiKey: encryptedApiKey,
     });
   },
 });
@@ -57,6 +60,7 @@ export const saveChat = mutation({
     model: v.string(),
     useageId: v.id("useage"),
     credits: v.number(),
+    encryptedApiKey: v.string(),
   },
   handler: async (ctx, args) => {
     const user_id = args.userId;
@@ -65,6 +69,7 @@ export const saveChat = mutation({
     const model = args.model;
     const useageId = args.useageId;
     const credits = args.credits;
+    const encryptedApiKey = args.encryptedApiKey;
 
     const chat_id = await ctx.db.insert("chats", {
       user_id: user_id,
@@ -80,6 +85,7 @@ export const saveChat = mutation({
       model: model,
       useageId: useageId,
       credits: credits,
+      encryptedApiKey: encryptedApiKey,
     });
   },
 });
