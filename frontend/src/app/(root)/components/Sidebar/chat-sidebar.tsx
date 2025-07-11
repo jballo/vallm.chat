@@ -20,8 +20,8 @@ import {
   useMutation,
   useQuery,
 } from "convex/react";
-import { api } from "../../../../convex/_generated/api";
-import { Id } from "../../../../convex/_generated/dataModel";
+import { api } from "../../../../../convex/_generated/api";
+import { Id } from "../../../../../convex/_generated/dataModel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/atoms/tabs";
 import clsx from "clsx";
 import { Separator } from "@/atoms/separator";
