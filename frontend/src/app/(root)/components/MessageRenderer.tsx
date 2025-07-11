@@ -2,14 +2,21 @@
 import React, { useEffect, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { oneDark } from "react-syntax-highlighter/dist/cjs/styles/prism";
+import { oneDark, nord } from "react-syntax-highlighter/dist/cjs/styles/prism";
 import type { Components } from "react-markdown";
+import { useTheme } from "next-themes";
 
 interface MessageRendererProps {
   content: string;
 }
 
 export function MessageRenderer({ content }: MessageRendererProps) {
+  const { theme } = useTheme();
+
+  const prismStyle = useMemo(() => {
+    return theme === "dark" ? oneDark : nord;
+  }, [theme]);
+
   const components: Components = useMemo(
     () => ({
       code(props) {
@@ -21,11 +28,11 @@ export function MessageRenderer({ content }: MessageRendererProps) {
         if (!isInline && language) {
           return (
             <div className="my-3 rounded-lg overflow-hidden">
-              <div className="bg-[#362d3d] text-gray-300 px-3 py-2 text-xs font-mono border-b border-gray-700">
+              <div className="bg-secondary-foreground text-primary-foreground px-3 py-2 text-xs font-mono border-b border-gray-700">
                 {language}
               </div>
               <SyntaxHighlighter
-                style={oneDark}
+                style={prismStyle}
                 language={language}
                 PreTag="div"
                 customStyle={{
@@ -90,7 +97,7 @@ export function MessageRenderer({ content }: MessageRendererProps) {
         return <li className="leading-relaxed">{children}</li>;
       },
       strong({ children }) {
-        return <strong className="font-semibold text-white">{children}</strong>;
+        return <strong className="font-semibold text-foreground">{children}</strong>;
       },
       blockquote({ children }) {
         return (
@@ -112,7 +119,7 @@ export function MessageRenderer({ content }: MessageRendererProps) {
         );
       },
     }),
-    []
+    [prismStyle]
   );
 
   const renderedContent = useMemo(

@@ -22,23 +22,47 @@ import {
   LogIn,
   RefreshCcw,
   SquarePen,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { Button } from "@/atoms/button";
 import { Input } from "@/atoms/input";
 import { Id } from "../../../../convex/_generated/dataModel";
-import { Authenticated, Unauthenticated, useAction, useConvexAuth, useMutation, useQuery } from "convex/react";
+import {
+  Authenticated,
+  Unauthenticated,
+  useAction,
+  useConvexAuth,
+  useMutation,
+  useQuery,
+} from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { ModelSelector } from "./model-selector";
 import { MessageRenderer } from "./MessageRenderer";
 import { UploadButton } from "@/utils/uploadthing";
 import Image from "next/image";
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/atoms/dialog";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/atoms/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/atoms/tabs";
-import * as DialogPrimitive from "@radix-ui/react-dialog"
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/atoms/popover";
 import { Card, CardContent, CardFooter, CardHeader } from "@/atoms/card";
-import { SignInButton, SignOutButton } from "@clerk/nextjs";
+import { SignInButton, SignOutButton, useUser } from "@clerk/nextjs";
 import { Textarea } from "@/atoms/textarea";
+import { useTheme } from "next-themes";
+import dynamic from "next/dynamic";
+import { toast } from "sonner";
+
+const CreditCount = dynamic(() => import("./CreditCount"), {
+  ssr: true,
+});
 
 interface CoreTextPart {
   type: "text";
@@ -64,25 +88,30 @@ interface CoreMessage {
   content: CoreContent;
 }
 
-
 interface QueryMessage {
   _id: Id<"messages">;
   _creationTime: number;
   model?: string | undefined;
   message: {
     role: "user" | "system" | "assistant" | "tool";
-    content: string | ({
-      text: string;
-      type: "text";
-    } | {
-      mimeType?: string | undefined;
-      image: string;
-      type: "image";
-    } | {
-      type: "file";
-      mimeType: string;
-      data: string;
-    })[];
+    content:
+      | string
+      | (
+          | {
+              text: string;
+              type: "text";
+            }
+          | {
+              mimeType?: string | undefined;
+              image: string;
+              type: "image";
+            }
+          | {
+              type: "file";
+              mimeType: string;
+              data: string;
+            }
+        )[];
   };
   author_id: string;
   chat_id: Id<"chats">;
@@ -94,31 +123,57 @@ interface ChatMainProps {
     id: string;
     name: string;
     icon: string;
+    provider: string;
     capabilities: string[];
   };
   setSelectedModel: (model: {
     id: string;
     name: string;
     icon: string;
+    provider: string;
     capabilities: string[];
   }) => void;
-  activeChat: { id: Id<"chats">, title: string } | null;
+  activeChat: { id: Id<"chats">; title: string } | null;
   sidebarCollapsed: boolean;
   onToggleSidebar: () => void;
-  activeTab: "myChats" | "shared"
+  activeTab: "myChats" | "shared";
 }
 
 interface ChatMessagesProps {
   messages: QueryMessage[];
-  activeChat: { id: Id<"chats">, title: string } | null;
-  activeTab: "myChats" | "shared"
+  activeChat: { id: Id<"chats">; title: string } | null;
+  activeTab: "myChats" | "shared";
+  useage:
+    | {
+        _id: Id<"useage">;
+        _creationTime: number;
+        user_id: string;
+        messagesRemaining: number;
+      }
+    | null
+    | undefined;
+  allAvailableApiKeys:
+    | {
+        _id: Id<"userApiKeys">;
+        _creationTime: number;
+        user_id: string;
+        provider: string;
+        encryptedApiKey: string;
+      }[]
+    | undefined;
 }
 
-export function ChatMessages({ messages, activeChat, activeTab }: ChatMessagesProps) {
+export function ChatMessages({
+  messages,
+  activeChat,
+  activeTab,
+  useage,
+  allAvailableApiKeys,
+}: ChatMessagesProps) {
   // Memoize the messages rendering
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const branchChat = useMutation(api.chat.branchChat);
-  const regenerateResponse = useMutation(api.chat.regnerateResponse);
+  const regenerateResponse = useMutation(api.messages.regnerateResponse);
 
   useEffect(() => {
     // Use requestAnimationFrame to ensure DOM is updated
@@ -139,37 +194,53 @@ export function ChatMessages({ messages, activeChat, activeTab }: ChatMessagesPr
     await branchChat({
       title: activeChat.title,
       conversation_id: activeChat.id,
-      message_id: message_id
-    })
-  }
+      message_id: message_id,
+    });
+  };
 
   const regenerateMessage = async (msg: QueryMessage) => {
+    if (useage === null || useage === undefined) return;
+    if (!allAvailableApiKeys) return;
+    const selectedProvider =
+      msg.model === "gemini-2.0-flash" ? "Gemini" : "Groq";
+
+    const encryptedApiKey = allAvailableApiKeys.find(
+      (key) => key.provider == selectedProvider
+    );
+
+    if (encryptedApiKey === undefined) return;
+
     console.log("msg: ", msg);
     console.log("msg role: ", msg.message.role);
 
-    const targetIndex = messages.findIndex(tempMsg => tempMsg._id === msg._id);
+    const targetIndex = messages.findIndex(
+      (tempMsg) => tempMsg._id === msg._id
+    );
     if (targetIndex === -1) return;
 
     console.log("index of message: ", targetIndex);
 
-    const messagesToDelete = (msg.message.role === "user")
-      ? messages.slice(targetIndex, messages.length)
-      : messages.slice(targetIndex - 1, messages.length);
+    const messagesToDelete =
+      msg.message.role === "user"
+        ? messages.slice(targetIndex, messages.length)
+        : messages.slice(targetIndex - 1, messages.length);
 
-    const messageIdsToDelete: Id<"messages">[] = (msg.message.role === "user")
-      ? messages.slice(targetIndex, messages.length).map(m => m._id)
-      : messages.slice(targetIndex - 1, messages.length).map(m => m._id);
+    const messageIdsToDelete: Id<"messages">[] =
+      msg.message.role === "user"
+        ? messages.slice(targetIndex, messages.length).map((m) => m._id)
+        : messages.slice(targetIndex - 1, messages.length).map((m) => m._id);
     // const messageIdsToDelete: Id<"messages">[] = messages.slice(targetIndex, messages.length).map(m => m._id);
 
-    const history: CoreMessage[] = (msg.message.role === "user")
-      ? messages.slice(0, targetIndex + 1).map(m => ({
-        role: m.message.role,
-        content: m.message.content
-      }))
-      : messages.slice(0, targetIndex).map(m => ({
-        role: m.message.role,
-        content: m.message.content
-      }));
+    const history: CoreMessage[] =
+      msg.message.role === "user"
+        ? messages.slice(0, targetIndex + 1).map((m) => ({
+            role: m.message.role,
+            content: m.message.content,
+          }))
+        : messages.slice(0, targetIndex).map((m) => ({
+            role: m.message.role,
+            content: m.message.content,
+          }));
 
     const conversation_id = msg.chat_id;
 
@@ -185,10 +256,12 @@ export function ChatMessages({ messages, activeChat, activeTab }: ChatMessagesPr
       conversationId: conversation_id,
       history: history,
       model: model || "",
-      messageIdsToDelete: messageIdsToDelete
-    })
-
-  }
+      messageIdsToDelete: messageIdsToDelete,
+      useageId: useage._id,
+      credits: useage.messagesRemaining,
+      encryptedApiKey: encryptedApiKey.encryptedApiKey,
+    });
+  };
 
   // Memoize the messages rendering
   const renderedMessages = useMemo(
@@ -197,9 +270,13 @@ export function ChatMessages({ messages, activeChat, activeTab }: ChatMessagesPr
         <div key={msg._id} className="mb-8">
           {msg.message.role === "assistant" ? (
             <div className="flex flex-col justify-start group">
-              <div className="max-w-[80%] bg-[#2a2a2a] text-white rounded-2xl rounded-bl-md px-4 py-3">
+              <div className="max-w-[80%] bg-muted rounded-2xl rounded-bl-md px-4 py-3">
                 {Array.isArray(msg.message.content) ? (
-                  msg.message.content[0].type === "text" ? <MessageRenderer content={msg.message.content[0].text} /> : ''
+                  msg.message.content[0].type === "text" ? (
+                    <MessageRenderer content={msg.message.content[0].text} />
+                  ) : (
+                    ""
+                  )
                 ) : (
                   <MessageRenderer content={msg.message.content} />
                 )}
@@ -224,16 +301,20 @@ export function ChatMessages({ messages, activeChat, activeTab }: ChatMessagesPr
                   >
                     <RefreshCcw className="h-3 w-3" />
                   </Button>
-                  <p className="text-white text-xs">{msg.model}</p>
+                  <p className="text-xs">{msg.model}</p>
                 </div>
               </div>
             </div>
           ) : (
             <div className="flex flex-col items-end group">
-              <div className="max-w-[80%] bg-[#3a1a2f] text-white rounded-2xl rounded-br-md px-4 py-3">
+              <div className="max-w-[80%] bg-primary text-primary-foreground rounded-2xl rounded-br-md px-4 py-3">
                 {Array.isArray(msg.message.content) ? (
                   <>
-                    {msg.message.content[0].type === "text" ? <MessageRenderer content={msg.message.content[0].text} /> : ''}
+                    {msg.message.content[0].type === "text" ? (
+                      <MessageRenderer content={msg.message.content[0].text} />
+                    ) : (
+                      ""
+                    )}
                     <div className="flex flex-row gap-2 mt-2">
                       {msg.message.content.slice(1).map((item, index) => {
                         if (item.type === "image") {
@@ -249,10 +330,14 @@ export function ChatMessages({ messages, activeChat, activeTab }: ChatMessagesPr
                           );
                         } else if (item.type === "file") {
                           return (
-                            <div key={index} className="flex flex-row items-center w-[165px] h-[50px] overflow-hidden text-xs text-white p-3 rounded-xl border border-[#3a3340] gap-1">
-                              <Paperclip className="h-4 w-4" /> {item.data?.split('/').pop()}
+                            <div
+                              key={index}
+                              className="flex flex-row items-center w-[165px] h-[50px] overflow-hidden text-xs text-white p-3 rounded-xl border border-[#3a3340] gap-1"
+                            >
+                              <Paperclip className="h-4 w-4" />{" "}
+                              {item.data?.split("/").pop()}
                             </div>
-                          )
+                          );
                         }
                       })}
                     </div>
@@ -299,43 +384,46 @@ export function ChatMessages({ messages, activeChat, activeTab }: ChatMessagesPr
 }
 
 export function InvitationList() {
-  const pendingInvitations = useQuery(api.chat.getPendingInvitations);
-  const acceptInvite = useMutation(api.chat.acceptInvitation);
-  const denyInvite = useMutation(api.chat.denyInvitation);
+  const pendingInvitations = useQuery(api.sharing.getPendingInvitations);
+  const acceptInvite = useMutation(api.sharing.acceptInvitation);
+  const denyInvite = useMutation(api.sharing.denyInvitation);
 
   return (
     <>
-      {(pendingInvitations && pendingInvitations.length > 0) ? (pendingInvitations.map(invitation => (
-        <div key={invitation._id} className="flex flex-col gap-2 p-3 border border-[#2a2a2a] rounded-xl mb-2">
-          <p className="text-base font-bold text-white">
-            {invitation.chat_name}
-          </p>
-          <p className="text-sm text-gray-400">
-            {invitation.author_email} shared a chat.
-          </p>
-          <div className="flex flex-row items-center justify-between">
-            <p className="text-sm text-gray-500">
-              {new Date(invitation._creationTime).toLocaleDateString()}
-            </p>
-            <div className="flex flex-row gap-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-gray-400 hover:text-white hover:bg-[#2a2a2a] rounded-xl"
-                onClick={() => denyInvite({ invitation_id: invitation._id })}
-              >
-                <XIcon className="h-4 w-4" />
-              </Button>
-              <Button
-                className="bg-[#3a1a2f] hover:bg-[#4a2a3f] text-white rounded-xl px-3 py-1 text-sm"
-                onClick={() => acceptInvite({ invitation_id: invitation._id })}
-              >
-                <Check className="h-4 w-4 mr-1" /> Accept
-              </Button>
+      {pendingInvitations && pendingInvitations.length > 0 ? (
+        pendingInvitations.map((invitation) => (
+          <div
+            key={invitation._id}
+            className="flex flex-col gap-2 p-3 border border-[#2a2a2a] rounded-xl mb-2"
+          >
+            <p className="text-base font-bold">{invitation.chat_name}</p>
+            <p className="text-sm">{invitation.author_email} shared a chat.</p>
+            <div className="flex flex-row items-center justify-between">
+              <p className="text-sm">
+                {new Date(invitation._creationTime).toLocaleDateString()}
+              </p>
+              <div className="flex flex-row gap-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-xl"
+                  onClick={() => denyInvite({ invitation_id: invitation._id })}
+                >
+                  <XIcon className="h-4 w-4" />
+                </Button>
+                <Button
+                  className="rounded-xl px-3 py-1 text-sm"
+                  onClick={() =>
+                    acceptInvite({ invitation_id: invitation._id })
+                  }
+                >
+                  <Check className="h-4 w-4 mr-1" /> Accept
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
-      ))) : (
+        ))
+      ) : (
         <div className="flex flex-col gap-2 p-3 border border-[#2a2a2a] rounded-xl mb-2">
           No Invitations
         </div>
@@ -345,136 +433,176 @@ export function InvitationList() {
 }
 
 interface File {
-  type: string,
-  data: string,
-  mimeType: string,
+  type: string;
+  data: string;
+  mimeType: string;
 }
 
 export function ChatMain({
   selectedModel,
   activeChat,
   setSelectedModel,
-  activeTab
+  activeTab,
 }: ChatMainProps) {
+  const { theme, setTheme } = useTheme();
   const { isLoading, isAuthenticated } = useConvexAuth();
   const [message, setMessage] = useState("");
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [email, setEmail] = useState<string>("");
-
+  const { user, isLoaded, isSignedIn } = useUser();
 
   const messages =
     useQuery(
-      api.chat.getMessages,
+      api.messages.getMessages,
       activeChat ? { conversationId: activeChat.id } : "skip"
     ) || [];
 
   // console.log("messages: ", messages);
-  const sendMessage = useMutation(api.chat.sendMessage);
+  const sendMessage = useMutation(api.messages.sendMessage);
   const createChat = useAction(api.chat.createChat);
-  const uploadImages = useMutation(api.chat.uploadImages);
-  const createInvitation = useMutation(api.chat.createInvitation);
+  const uploadImages = useMutation(api.files.uploadImages);
+  const createInvitation = useMutation(api.sharing.createInvitation);
+  const useage = useQuery(
+    api.users.getUsage,
+    !user || !isLoaded || !isSignedIn ? "skip" : {}
+  );
+
+  const getAllApiKeys = useQuery(
+    api.keysMutations.getAllApiKeys,
+    !user || !isLoaded || !isSignedIn ? "skip" : {}
+  );
 
   // const branchChat = useMutation(api.chat.branchChat);
 
-
   const handleSendMessage = () => {
+    if (!getAllApiKeys) return;
+    const availableProviders: string[] = getAllApiKeys.map(
+      (key) => key.provider
+    );
+
+    if (
+      !availableProviders.some(
+        (provider) => provider === selectedModel.provider
+      )
+    ) {
+      console.log("No provider key provided!");
+      toast.error("No API Key!", {
+        description: "Please provide the appropriate api key.",
+      });
+      return;
+    }
+
     if (isLoading || !isAuthenticated) return;
+
+    if (useage === null || useage === undefined || useage.messagesRemaining < 1)
+      return;
+
+    // const encryptedApiKey: string | undefined = getAllApiKeys.find(
+    //   (key) => key.provider === selectedModel.provider
+    // );
+
+    const encryptedApiKey = getAllApiKeys.find(
+      (key) => key.provider === selectedModel.provider
+    );
+
+    if (!encryptedApiKey) return;
 
     if (!activeChat) {
       if (uploadedFiles.length > 0) {
-
         const userMsg: CoreTextPart = {
           type: "text",
-          text: message
-        }
+          text: message,
+        };
         const tempFiles: (CoreImagePart | CoreFilePart)[] = [];
 
-        uploadedFiles.map(file => {
+        uploadedFiles.map((file) => {
           if (file.mimeType === "application/pdf") {
             const tempFile: CoreFilePart = {
               type: "file",
               data: file.data,
               mimeType: file.mimeType,
-            }
+            };
             tempFiles.push(tempFile);
           } else {
             const tempImg: CoreImagePart = {
               type: "image",
               image: file.data,
-              mimeType: file.mimeType
-            }
+              mimeType: file.mimeType,
+            };
             tempFiles.push(tempImg);
           }
-        })
+        });
 
         const content: CoreContent = [userMsg, ...tempFiles];
 
-
         const msg: CoreMessage = {
           role: "user",
-          content: content
-        }
+          content: content,
+        };
         createChat({
           history: [msg],
-          model: selectedModel.id
+          model: selectedModel.id,
+          useageId: useage._id,
+          credits: useage.messagesRemaining,
+          encryptedApiKey: encryptedApiKey.encryptedApiKey,
         });
-
       } else {
         const msg: CoreMessage = {
           role: "user",
-          content: message
-        }
+          content: message,
+        };
 
         createChat({
           history: [msg],
           model: selectedModel.id,
+          useageId: useage._id,
+          credits: useage.messagesRemaining,
+          encryptedApiKey: encryptedApiKey.encryptedApiKey,
         });
       }
     } else {
       if (uploadedFiles.length > 0) {
-
         const userMsg: CoreTextPart = {
           type: "text",
-          text: message
-        }
+          text: message,
+        };
         const tempFiles: (CoreImagePart | CoreFilePart)[] = [];
 
-        uploadedFiles.map(file => {
+        uploadedFiles.map((file) => {
           if (file.mimeType === "application/pdf") {
             const tempFile: CoreFilePart = {
               type: "file",
               data: file.data,
               mimeType: file.mimeType,
-            }
+            };
             tempFiles.push(tempFile);
           } else {
             const tempImg: CoreImagePart = {
               type: "image",
               image: file.data,
-              mimeType: file.mimeType
-            }
+              mimeType: file.mimeType,
+            };
             tempFiles.push(tempImg);
           }
-        })
+        });
 
         const content: CoreContent = [userMsg, ...tempFiles];
 
-
         const msg: CoreMessage = {
           role: "user",
-          content: content
-        }
+          content: content,
+        };
 
         const oldHistory: CoreMessage[] = [];
 
-        messages.map(m => {
+        messages.map((m) => {
           if (m.message) {
             oldHistory.push({
               role: m.message.role,
-              content: m.message.content
+              content: m.message.content,
             });
           }
-        })
+        });
 
         const newHistory: CoreMessage[] = [...oldHistory, msg];
 
@@ -482,24 +610,26 @@ export function ChatMain({
           conversationId: activeChat.id,
           history: newHistory,
           model: selectedModel.id,
+          useageId: useage._id,
+          credits: useage.messagesRemaining,
+          encryptedApiKey: encryptedApiKey.encryptedApiKey,
         });
-
       } else {
         const msg: CoreMessage = {
           role: "user",
-          content: message
-        }
+          content: message,
+        };
 
         const oldHistory: CoreMessage[] = [];
 
-        messages.map(m => {
+        messages.map((m) => {
           if (m.message) {
             oldHistory.push({
               role: m.message.role,
-              content: m.message.content
+              content: m.message.content,
             });
           }
-        })
+        });
 
         const newHistory: CoreMessage[] = [...oldHistory, msg];
 
@@ -512,8 +642,10 @@ export function ChatMain({
           conversationId: activeChat.id,
           history: newHistory,
           model: selectedModel.id,
+          useageId: useage._id,
+          credits: useage.messagesRemaining,
+          encryptedApiKey: encryptedApiKey.encryptedApiKey,
         });
-
       }
     }
 
@@ -528,7 +660,6 @@ export function ChatMain({
     }
   };
 
-
   const shareChat = async () => {
     if (!email || email.length < 1) return;
 
@@ -537,10 +668,15 @@ export function ChatMain({
     await createInvitation({
       recipient_email: email,
       chat_id: activeChat.id,
-      chat_name: activeChat.title
+      chat_name: activeChat.title,
     });
-    setEmail("")
-  }
+    setEmail("");
+  };
+
+  const toggleTheme = () => {
+    const newTheme = theme === "dark" ? "light" : "dark";
+    setTheme(newTheme);
+  };
 
   // const onBranchChat = async () => {
   //   if (!activeChat) return;
@@ -551,15 +687,18 @@ export function ChatMain({
   // }
 
   return (
-    <div className="flex flex-col h-full bg-[#1a1a1a]">
+    <div className="flex flex-col h-full">
       {/* Chat header */}
-      <div className="flex items-center justify-between p-4 border-b border-[#2a2a2a] bg-[#1a1a1a]">
+      <div className="flex items-center justify-between p-4 border-b border-[#2a2a2a]">
         <div className="flex items-center gap-3">
-          <h2 className="text-white font-semibold text-lg">{activeChat ? activeChat.title : "Chat"}</h2>
+          <h2 className="font-semibold text-lg">
+            {activeChat ? activeChat.title : "Chat"}
+          </h2>
         </div>
         <div className="flex items-center gap-2">
           <Authenticated>
-            {(activeChat && activeTab === "myChats") && (
+            <CreditCount useage={useage} />
+            {activeChat && activeTab === "myChats" && (
               <>
                 {/* <Button
                   variant="ghost"
@@ -574,71 +713,71 @@ export function ChatMain({
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-9 w-9 text-gray-400 hover:text-white hover:bg-[#2a2a2a] rounded-xl transition-colors duration-200"
+                      className="h-9 w-9 rounded-xl transition-colors duration-200"
                     >
                       <Share className="h-5 w-5" />
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl p-6 shadow-lg gap-4">
-                    <DialogPrimitive.Close className="absolute top-4 right-4 rounded-sm text-white hover:opacity-75">
+                  <DialogContent className="border rounded-2xl p-6 shadow-lg gap-4">
+                    <DialogPrimitive.Close className="absolute top-4 right-4 rounded-sm hover:opacity-75">
                       <XIcon className="h-4 w-4" />
                       <span className="sr-only">Close</span>
                     </DialogPrimitive.Close>
                     <DialogHeader>
-                      <DialogTitle className="text-white font-semibold">
+                      <DialogTitle className="font-semibold">
                         Share {activeChat?.title}
                       </DialogTitle>
-                      <DialogDescription className="text-gray-400">
-                        Share your chat with other users on the platform. Enter their email.
+                      <DialogDescription className="">
+                        Share your chat with other users on the platform. Enter
+                        their email.
                       </DialogDescription>
                     </DialogHeader>
                     <div className="flex flex-col gap-8">
                       <div className="flex flex-row items-center gap-3">
-                        <label className="text-gray-400">
+                        <label className="">
                           <Mail className="h-8" />
                         </label>
                         <Input
                           type="email"
-                          className="bg-[#1e1e1e] text-white border border-[#3a3a3a] rounded-md h-8"
+                          className="border rounded-md h-8"
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
                         />
                       </div>
                       <div className="flex flex-row items-end justify-between">
                         <Tabs defaultValue="edit">
-                          <TabsList className="bg-[#2a2a2a] border border-[#3a3a3a] rounded-xl p-1">
+                          <TabsList className="border rounded-xl p-1">
                             <TabsTrigger
                               value="edit"
-                              className="px-4 py-2 rounded-md text-gray-300 hover:text-white transition-colors duration-200 data-[state=active]:bg-[#2A1A2F] data-[state=active]:text-white"
+                              className="px-4 py-2 rounded-md transition-colors duration-200"
                             >
                               Edit
                             </TabsTrigger>
                             <TabsTrigger
                               value="view"
-                              className="px-4 py-2 rounded-md text-gray-300 hover:text-white transition-colors duration-200 data-[state=active]:bg-[#2A1A2F] data-[state=active]:text-white"
+                              className="px-4 py-2 rounded-md transition-colors duration-200"
                             >
                               View
                             </TabsTrigger>
                           </TabsList>
-                          <TabsContent value="edit" className="mt-2 text-gray-300">
+                          <TabsContent value="edit" className="mt-2">
                             Let another user add additions to this chat.
                             <br />
-                            <strong>IMPORTANT</strong>: User must already be signed up.
+                            <strong>IMPORTANT</strong>: User must already be
+                            signed up.
                           </TabsContent>
-                          <TabsContent value="view" className="mt-2 text-gray-300">
+                          <TabsContent value="view" className="mt-2">
                             Coming soon...
                           </TabsContent>
                         </Tabs>
                         <DialogClose asChild>
                           <Button
-                            className="bg-[#3a1a2f] hover:bg-[#4a2a3f] text-white rounded-xl transition-colors duration-200"
+                            className="rounded-xl transition-colors duration-200"
                             onClick={shareChat}
                           >
                             Submit
                           </Button>
-
                         </DialogClose>
-
                       </div>
                     </div>
                   </DialogContent>
@@ -650,13 +789,13 @@ export function ChatMain({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-9 w-9 text-gray-400 hover:text-white hover:bg-[#2a2a2a] rounded-xl transition-colors duration-200"
+                  className="h-9 w-9 rounded-xl transition-colors duration-200"
                 >
                   <Bell className="h-5 w-5" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="bg-[#1e1e1e] border-none p-0 w-80">
-                <Card className="bg-[#1e1e1e] border-[1px] border-[#2a2a2a] text-white">
+              <PopoverContent className="border-none p-0 w-80">
+                <Card className="border-[1px]">
                   <CardHeader className="text-lg font-semibold">
                     Chat Invitations
                   </CardHeader>
@@ -667,11 +806,8 @@ export function ChatMain({
                     <Unauthenticated>
                       <p>Sign In to view invitations</p>
                     </Unauthenticated>
-
                   </CardContent>
-                  <CardFooter className="hidden">
-                    View All
-                  </CardFooter>
+                  <CardFooter className="hidden">View All</CardFooter>
                 </Card>
               </PopoverContent>
             </Popover>
@@ -679,7 +815,7 @@ export function ChatMain({
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-9 w-9 text-gray-400 hover:text-white hover:bg-[#2a2a2a] rounded-xl transition-colors duration-200"
+                className="h-9 w-9 rounded-xl transition-colors duration-200"
               >
                 <LogOut className="h-5 w-5" />
               </Button>
@@ -690,21 +826,37 @@ export function ChatMain({
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-9 w-9 text-gray-400 hover:text-white hover:bg-[#2a2a2a] rounded-xl transition-colors duration-200"
+                className="h-9 w-9 rounded-xl transition-colors duration-200"
               >
                 <LogIn className="h-5 w-5" />
               </Button>
-
             </SignInButton>
           </Unauthenticated>
+          <Button
+            variant="ghost"
+            className="p-0 text-md w-6 h-6 flex"
+            onClick={toggleTheme}
+          >
+            {theme === "dark" ? (
+              <Sun className="text-yellow-200" />
+            ) : (
+              <Moon className="text-violet-600" />
+            )}
+          </Button>
         </div>
       </div>
 
       {/* Chat messages */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto bg-card">
         <Authenticated>
           {activeChat ? (
-            <ChatMessages messages={messages} activeChat={activeChat} activeTab={activeTab} />
+            <ChatMessages
+              messages={messages}
+              activeChat={activeChat}
+              activeTab={activeTab}
+              useage={useage}
+              allAvailableApiKeys={getAllApiKeys}
+            />
           ) : (
             <div className="flex-1 overflow-y-auto p-6">
               <div className="max-w-4xl mx-auto">
@@ -725,71 +877,72 @@ export function ChatMain({
               <div className="grid grid-cols-2 gap-4 mt-8 max-w-2xl mx-auto">
                 <Button
                   variant="outline"
-                  className="flex items-center justify-start gap-3 h-16 bg-[#1e1e1e] border-[#3a3a3a] hover:bg-[#2a2a2a] text-white rounded-2xl transition-colors duration-200"
+                  className="flex items-center justify-start gap-3 h-16 rounded-2xl transition-colors duration-200"
                 >
-                  <div className="w-10 h-10 bg-[#3a1a2f] rounded-xl flex items-center justify-center">
-                    <Sparkles className="h-5 w-5 text-white" />
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center">
+                    <Sparkles className="h-5 w-5" />
                   </div>
                   <span className="font-medium">Create</span>
                 </Button>
                 <Button
                   variant="outline"
-                  className="flex items-center justify-start gap-3 h-16 bg-[#1e1e1e] border-[#3a3a3a] hover:bg-[#2a2a2a] text-white rounded-2xl transition-colors duration-200"
+                  className="flex items-center justify-start gap-3 h-16 rounded-2xl transition-colors duration-200"
                 >
-                  <div className="w-10 h-10 bg-[#3a1a2f] rounded-xl flex items-center justify-center">
-                    <HighlightIcon className="h-5 w-5 text-white" />
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center">
+                    <HighlightIcon className="h-5 w-5" />
                   </div>
                   <span className="font-medium">Explore</span>
                 </Button>
                 <Button
                   variant="outline"
-                  className="flex items-center justify-start gap-3 h-16 bg-[#1e1e1e] border-[#3a3a3a] hover:bg-[#2a2a2a] text-white rounded-2xl transition-colors duration-200"
+                  className="flex items-center justify-start gap-3 h-16 rounded-2xl transition-colors duration-200"
                 >
-                  <div className="w-10 h-10 bg-[#3a1a2f] rounded-xl flex items-center justify-center">
-                    <Code className="h-5 w-5 text-white" />
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center">
+                    <Code className="h-5 w-5" />
                   </div>
                   <span className="font-medium">Code</span>
                 </Button>
                 <Button
                   variant="outline"
-                  className="flex items-center justify-start gap-3 h-16 bg-[#1e1e1e] border-[#3a3a3a] hover:bg-[#2a2a2a] text-white rounded-2xl transition-colors duration-200"
+                  className="flex items-center justify-start gap-3 h-16 rounded-2xl transition-colors duration-200"
                 >
-                  <div className="w-10 h-10 bg-[#3a1a2f] rounded-xl flex items-center justify-center">
-                    <BookOpen className="h-5 w-5 text-white" />
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center">
+                    <BookOpen className="h-5 w-5" />
                   </div>
                   <span className="font-medium">Learn</span>
                 </Button>
               </div>
             </div>
           </div>
-
         </Unauthenticated>
       </div>
 
       {/* Message input */}
-      <div className="p-6 border-t border-[#2a2a2a] bg-[#1a1a1a]">
+      <div className="p-6 bg-card">
         <div className="flex flex-col  gap-3 max-w-4xl mx-auto">
           <div className="flex flex-row w-full gap-4">
             {uploadedFiles.map((file, index) => {
               if (file.type === "application/pdf") {
                 return (
-                  <div key={index} className="flex flex-row items-center w-[165px] h-[50px] overflow-hidden text-xs text-white p-3 rounded-xl border-1 border-[#3a3340] gap-1">
+                  <div
+                    key={index}
+                    className="flex flex-row items-center w-[165px] h-[50px] overflow-hidden text-xs text-white p-3 rounded-xl border-1 border-[#3a3340] gap-1"
+                  >
                     <Paperclip className="h-4 w-4" /> {file.type}
                   </div>
-                )
+                );
               } else {
                 return (
                   <Image
                     key={index}
                     alt={file.mimeType}
                     src={file.data}
-                    width={70}  // 70 pixels
+                    width={70} // 70 pixels
                     height={50} // 50 pixels
                     className="rounded-xl border-1 border-[#3a3340]"
                   />
                 );
               }
-
             })}
           </div>
           <div className="relative">
@@ -798,41 +951,57 @@ export function ChatMain({
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               onKeyDown={handleKeyPress}
-              className="pr-32 pl-6 py-3 bg-[#1e1e1e] border-[#3a3a3a] text-white rounded-2xl focus:border-[#3a1a2f] focus:ring-2 focus:ring-[#3a1a2f]/25 transition-colors duration-200 text-base"
+              className="pr-32 pl-6 py-3 border-[#3a3a3a] rounded-2xl focus:border-[#3a1a2f] focus:ring-2 focus:ring-[#3a1a2f]/25 transition-colors duration-200 text-base"
             />
             <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center gap-2">
-              {(selectedModel.capabilities.includes('image') || selectedModel.capabilities.includes('pdf')) && (
+              {(selectedModel.capabilities.includes("image") ||
+                selectedModel.capabilities.includes("pdf")) && (
                 <UploadButton
                   endpoint="imageUploader"
                   className="ut-button:h-9 ut-button:w-9 ut-button:bg-transparent ut-allowed-content:hidden"
                   content={{
                     button({ ready }) {
-                      if (ready) return <Paperclip className="w-4 h-4 text-[#99a1af]" />;
+                      if (ready)
+                        return <Paperclip className="w-4 h-4 text-[#99a1af]" />;
 
                       return <Ellipsis className="w-4 h-4 text-[#99a1af]" />;
                     },
                     allowedContent({ ready, isUploading }) {
-                      if (!ready) return <Ellipsis className="w-4 h-4 text-[#99a1af]" />;
-                      if (isUploading) return <LoaderCircle className="w-4 h-4 text-[#99a1af]" />;
+                      if (!ready)
+                        return <Ellipsis className="w-4 h-4 text-[#99a1af]" />;
+                      if (isUploading)
+                        return (
+                          <LoaderCircle className="w-4 h-4 text-[#99a1af]" />
+                        );
                       return "";
                     },
                   }}
                   onClientUploadComplete={async (res) => {
                     // Do something with the response
                     console.log("Files: ", res);
-                    const filesFormatted: { name: string, url: string, size: number, mimeType: string }[] = [];
+                    const filesFormatted: {
+                      name: string;
+                      url: string;
+                      size: number;
+                      mimeType: string;
+                    }[] = [];
 
-                    res.map(file => {
+                    res.map((file) => {
                       filesFormatted.push({
                         name: file.name,
                         url: file.ufsUrl,
                         size: file.size,
                         mimeType: file.type,
-                      })
+                      });
                     });
 
-                    const tempFiles = await uploadImages({ files: filesFormatted });
-                    setUploadedFiles(prevFiles => [...prevFiles, ...tempFiles]);
+                    const tempFiles = await uploadImages({
+                      files: filesFormatted,
+                    });
+                    setUploadedFiles((prevFiles) => [
+                      ...prevFiles,
+                      ...tempFiles,
+                    ]);
                     // alert("Upload Completed");
                   }}
                   onUploadError={(error: Error) => {
@@ -847,7 +1016,7 @@ export function ChatMain({
               />
               <Button
                 size="icon"
-                className="h-9 w-9 bg-[#3a1a2f] hover:bg-[#4a2a3f] rounded-xl transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="h-9 w-9 rounded-xl transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={handleSendMessage}
                 disabled={!message.trim()}
               >
