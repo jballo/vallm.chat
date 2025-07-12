@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
-import { Id } from "../../../../../convex/_generated/dataModel";
+import { Id } from "../../../../../../convex/_generated/dataModel";
 import { useMutation } from "convex/react";
-import { api } from "../../../../../convex/_generated/api";
+import { api } from "../../../../../../convex/_generated/api";
 import { MessageRenderer } from "./MessageRenderer";
 import { Button } from "@/atoms/button";
 import { GitBranch, Paperclip, RefreshCcw, SquarePen } from "lucide-react";
