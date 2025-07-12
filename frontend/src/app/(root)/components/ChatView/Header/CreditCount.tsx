@@ -1,5 +1,5 @@
 import { Authenticated } from "convex/react";
-import { Id } from "../../../../convex/_generated/dataModel";
+import { Id } from "../../../../../../convex/_generated/dataModel";
 
 interface CreditCountProps {
   useage:

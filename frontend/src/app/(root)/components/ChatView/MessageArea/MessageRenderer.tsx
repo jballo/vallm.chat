@@ -97,7 +97,9 @@ export function MessageRenderer({ content }: MessageRendererProps) {
         return <li className="leading-relaxed">{children}</li>;
       },
       strong({ children }) {
-        return <strong className="font-semibold text-foreground">{children}</strong>;
+        return (
+          <strong className="font-semibold text-foreground">{children}</strong>
+        );
       },
       blockquote({ children }) {
         return (
