@@ -194,11 +194,16 @@ export function ChatMessages({
             <div className="flex flex-col justify-start group">
               <div className="max-w-[80%] bg-muted rounded-2xl rounded-bl-md px-4 py-3">
                 {Array.isArray(msg.message.content) ? (
-                  msg.message.content[0].type === "text" ? (
+                  msg.message.content[0].type === "text" && (
                     <MessageRenderer content={msg.message.content[0].text} />
-                  ) : (
-                    ""
                   )
+                ) : msg.message.content.length === 0 ? (
+                  <div className="flex space-x-5 justify-center p-4">
+                    <span className="sr-only">Loading...</span>
+                    <div className="h-2 w-2 bg-primary rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                    <div className="h-2 w-2 bg-primary rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                    <div className="h-2 w-2 bg-primary rounded-full animate-bounce"></div>
+                  </div>
                 ) : (
                   <MessageRenderer content={msg.message.content} />
                 )}
