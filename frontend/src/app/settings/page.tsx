@@ -20,6 +20,8 @@ export default function Settings() {
   // const [openRouterKey, setOpenRouterKey] = useState<string>("");
   const [geminiKey, setGeminiKey] = useState<string>("");
   const [groqKey, setGroqKey] = useState<string>("");
+  const [groqKeyLoading, setGroqKeyLoading] = useState<boolean>(false);
+  const [geminiKeyLoading, setGeminiKeyLoading] = useState<boolean>(false);
 
   const [providerAvailability, setProviderAvailability] = useState<{
     OpenRouter: boolean;
@@ -88,6 +90,7 @@ export default function Settings() {
     if (!user || !isLoaded || !isSignedIn) return;
     const key = geminiKey;
     setGeminiKey("");
+    setGeminiKeyLoading(true);
 
     const result = await saveApiKey({
       provider: "Gemini",
@@ -107,6 +110,7 @@ export default function Settings() {
     if (!user || !isLoaded || !isSignedIn) return;
     const key = groqKey;
     setGroqKey("");
+    setGroqKeyLoading(true);
 
     const result = await saveApiKey({
       provider: "Groq",
@@ -246,14 +250,28 @@ export default function Settings() {
                       })}
                       onClick={onSubmitGroqKey}
                     >
-                      <Check />
+                      {groqKeyLoading ? (
+                        <div
+                          className="inline-block h-5 w-5 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] text-primary motion-reduce:animate-[spin_1.5s_linear_infinite]"
+                          role="status"
+                        >
+                          <span className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]">
+                            Loading...
+                          </span>
+                        </div>
+                      ) : (
+                        <Check />
+                      )}
                     </Button>
                     <Button
                       variant="ghost"
                       className={cn("", {
                         hidden: !providerAvailability.Groq,
                       })}
-                      onClick={() => deleteKey("Groq")}
+                      onClick={async () => {
+                        await deleteKey("Groq");
+                        setGroqKeyLoading(false);
+                      }}
                     >
                       <Trash />
                     </Button>
@@ -282,14 +300,28 @@ export default function Settings() {
                       })}
                       onClick={onSubmitGeminiKey}
                     >
-                      <Check />
+                      {geminiKeyLoading ? (
+                        <div
+                          className="inline-block h-5 w-5 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] text-primary motion-reduce:animate-[spin_1.5s_linear_infinite]"
+                          role="status"
+                        >
+                          <span className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]">
+                            Loading...
+                          </span>
+                        </div>
+                      ) : (
+                        <Check />
+                      )}
                     </Button>
                     <Button
                       variant="ghost"
                       className={cn("", {
                         hidden: !providerAvailability.Gemini,
                       })}
-                      onClick={() => deleteKey("Gemini")}
+                      onClick={async () => {
+                        await deleteKey("Gemini");
+                        setGeminiKeyLoading(false);
+                      }}
                     >
                       <Trash />
                     </Button>
