@@ -90,6 +90,29 @@ export const saveChat = mutation({
   },
 });
 
+export const hybridSaveChat = mutation({
+  args: {
+    title: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    const { title } = args;
+
+    const chat_id = await ctx.db.insert("chats", {
+      user_id: identity.subject,
+      title,
+    });
+
+    const chatCreated = await ctx.db.get(chat_id);
+
+    if (chatCreated === null) throw new Error("Failed to create chat");
+
+    return chat_id;
+  },
+});
+
 export const getChats = query({
   args: {},
   handler: async (ctx) => {

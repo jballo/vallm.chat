@@ -11,6 +11,7 @@ import { useState } from "react";
 import { api } from "../../../../../../convex/_generated/api";
 import { Id } from "../../../../../../convex/_generated/dataModel";
 import { toast } from "sonner";
+import { useUser } from "@clerk/nextjs";
 
 interface CoreTextPart {
   type: "text";
@@ -117,6 +118,7 @@ export default function MessageInput({
   useage,
   getAllApiKeys,
 }: MessageInputProps) {
+  const { user, isLoaded, isSignedIn } = useUser();
   const { isLoading, isAuthenticated } = useConvexAuth();
 
   const [message, setMessage] = useState("");
@@ -305,10 +307,193 @@ export default function MessageInput({
     setUploadedFiles([]);
   };
 
+  const handleSendMessageRoute = async () => {
+    if (!user || !isSignedIn || !isLoaded || !getAllApiKeys) return;
+    const availableProviders: string[] = getAllApiKeys.map(
+      (key) => key.provider
+    );
+
+    if (
+      !availableProviders.some(
+        (provider) => provider === selectedModel.provider
+      )
+    ) {
+      console.log("No provider key provided!");
+      toast.error("No API Key!", {
+        description: "Please provide the appropriate api key.",
+      });
+      return;
+    }
+
+    if (isLoading || !isAuthenticated) return;
+
+    if (useage === null || useage === undefined || useage.messagesRemaining < 1)
+      return;
+
+    const encryptedApiKey = getAllApiKeys.find(
+      (key) => key.provider === selectedModel.provider
+    );
+
+    if (!encryptedApiKey) return;
+
+    let chat_id: Id<"chats"> | null;
+
+    let history;
+
+    if (uploadedFiles.length > 0) {
+      const userMsg: CoreTextPart = {
+        type: "text",
+        text: message,
+      };
+      const tempFiles: (CoreImagePart | CoreFilePart)[] = [];
+
+      uploadedFiles.map((file) => {
+        if (file.mimeType === "application/pdf") {
+          const tempFile: CoreFilePart = {
+            type: "file",
+            data: file.data,
+            mimeType: file.mimeType,
+          };
+          tempFiles.push(tempFile);
+        } else {
+          const tempImg: CoreImagePart = {
+            type: "image",
+            image: file.data,
+            mimeType: file.mimeType,
+          };
+          tempFiles.push(tempImg);
+        }
+      });
+
+      const content: CoreContent = [userMsg, ...tempFiles];
+
+      const msg: CoreMessage = {
+        role: "user",
+        content: content,
+      };
+      history = [msg];
+    } else {
+      const msg: CoreMessage = {
+        role: "user",
+        content: message,
+      };
+      history = [msg];
+    }
+
+    if (!activeChat) {
+      const response = await fetch("/api/chats", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          user_id: user.id,
+          history,
+        }),
+      });
+
+      if (!response.ok) {
+        console.log("Failed to create chat");
+        return;
+      }
+
+      const result = await response.json();
+      chat_id = result.content as Id<"chats">;
+    } else {
+      chat_id = activeChat.id;
+    }
+
+    if (uploadedFiles.length > 0) {
+      const userMsg: CoreTextPart = {
+        type: "text",
+        text: message,
+      };
+      const tempFiles: (CoreImagePart | CoreFilePart)[] = [];
+
+      uploadedFiles.map((file) => {
+        if (file.mimeType === "application/pdf") {
+          const tempFile: CoreFilePart = {
+            type: "file",
+            data: file.data,
+            mimeType: file.mimeType,
+          };
+          tempFiles.push(tempFile);
+        } else {
+          const tempImg: CoreImagePart = {
+            type: "image",
+            image: file.data,
+            mimeType: file.mimeType,
+          };
+          tempFiles.push(tempImg);
+        }
+      });
+
+      const content: CoreContent = [userMsg, ...tempFiles];
+
+      const msg: CoreMessage = {
+        role: "user",
+        content: content,
+      };
+
+      const oldHistory: CoreMessage[] = [];
+
+      messages.map((m) => {
+        if (m.message) {
+          oldHistory.push({
+            role: m.message.role,
+            content: m.message.content,
+          });
+        }
+      });
+
+      const newHistory: CoreMessage[] = [...oldHistory, msg];
+
+      sendMessage({
+        conversationId: chat_id,
+        history: newHistory,
+        model: selectedModel.id,
+        useageId: useage._id,
+        credits: useage.messagesRemaining,
+        encryptedApiKey: encryptedApiKey.encryptedApiKey,
+      });
+    } else {
+      const msg: CoreMessage = {
+        role: "user",
+        content: message,
+      };
+
+      const oldHistory: CoreMessage[] = [];
+
+      messages.map((m) => {
+        if (m.message) {
+          oldHistory.push({
+            role: m.message.role,
+            content: m.message.content,
+          });
+        }
+      });
+
+      const newHistory: CoreMessage[] = [...oldHistory, msg];
+
+      sendMessage({
+        conversationId: chat_id,
+        history: newHistory,
+        model: selectedModel.id,
+        useageId: useage._id,
+        credits: useage.messagesRemaining,
+        encryptedApiKey: encryptedApiKey.encryptedApiKey,
+      });
+    }
+
+    setMessage("");
+    setUploadedFiles([]);
+  };
+
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      handleSendMessage();
+      // handleSendMessage();
+      handleSendMessageRoute();
     }
   };
 
@@ -409,7 +594,7 @@ export default function MessageInput({
             <Button
               size="icon"
               className="h-9 w-9 rounded-xl transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-              onClick={handleSendMessage}
+              onClick={handleSendMessageRoute}
               disabled={!message.trim()}
             >
               <Send className="h-4 w-4" />

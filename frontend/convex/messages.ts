@@ -99,6 +99,51 @@ export const sendMessage = mutation({
   },
 });
 
+export const saveUserMessage = mutation({
+  args: {
+    chat_id: v.id("chats"),
+    userMessage: coreMessage,
+    model: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const idendity = await ctx.auth.getUserIdentity();
+    if (!idendity) throw new Error("Not authenticated!");
+
+    const { chat_id, userMessage, model } = args;
+
+    await ctx.db.insert("messages", {
+      author_id: idendity.subject,
+      chat_id,
+      message: userMessage,
+      isComplete: false,
+      model: model,
+    });
+  },
+});
+
+export const initiateMessage = mutation({
+  args: {
+    chat_id: v.id("chats"),
+    model: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const idenity = await ctx.auth.getUserIdentity();
+    if (!idenity) throw new Error("Not authenticated!");
+
+    const { chat_id, model } = args;
+
+    const message_id = await ctx.db.insert("messages", {
+      author_id: idenity.subject,
+      chat_id: chat_id,
+      message: { role: "assistant", content: "" },
+      isComplete: false,
+      model: model,
+    });
+
+    return message_id;
+  },
+});
+
 export const getMessages = query({
   args: { conversationId: v.id("chats") },
   handler: async (ctx, args) => {
@@ -119,13 +164,14 @@ export const getMessages = query({
   },
 });
 
-export const updateMessage = internalMutation({
+export const updateMessageRoute = mutation({
   args: {
     messageId: v.id("messages"),
     content: v.string(),
   },
   handler: async (ctx, args) => {
-    // update appropriate message with the new content
+    const idenity = await ctx.auth.getUserIdentity();
+    if (!idenity) throw new Error("Not authenticated");
     const messageId = args.messageId;
     const content = args.content;
 
@@ -135,6 +181,34 @@ export const updateMessage = internalMutation({
         role: "assistant",
       },
     });
+  },
+});
+
+export const updateMessage = internalMutation({
+  args: {
+    messageId: v.id("messages"),
+    content: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const messageId = args.messageId;
+    const content = args.content;
+
+    await ctx.db.patch(messageId, {
+      message: {
+        content: content,
+        role: "assistant",
+      },
+    });
+  },
+});
+
+export const completeMessageRoute = mutation({
+  args: { messageId: v.id("messages") },
+  handler: async (ctx, args) => {
+    // update appropriate message with the completed status
+    const messageId = args.messageId;
+
+    await ctx.db.patch(messageId, { isComplete: true });
   },
 });
 

@@ -41,3 +41,18 @@ export const getUsage = query({
     return remainingCredits;
   },
 });
+
+export const updateUseage = mutation({
+  args: {
+    useageId: v.id("useage"),
+    credits: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const idenity = await ctx.auth.getUserIdentity();
+    if (!idenity) throw new Error("Not authenticated!");
+
+    const { useageId, credits } = args;
+
+    await ctx.db.patch(useageId, { messagesRemaining: credits });
+  },
+});
