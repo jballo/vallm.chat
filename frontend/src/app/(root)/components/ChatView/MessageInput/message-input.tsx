@@ -6,7 +6,7 @@ import { Ellipsis, LoaderCircle, Paperclip, Send } from "lucide-react";
 import Image from "next/image";
 import { ModelSelector } from "./model-selector";
 import { Button } from "@/atoms/button";
-import { useAction, useConvexAuth, useMutation } from "convex/react";
+import { useConvexAuth, useMutation } from "convex/react";
 import { useEffect, useState } from "react";
 import { api } from "../../../../../../convex/_generated/api";
 import { Id } from "../../../../../../convex/_generated/dataModel";
@@ -125,191 +125,191 @@ export default function MessageInput({
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
 
   const sendMessage = useMutation(api.messages.sendMessage);
-  const createChat = useAction(api.chat.createChat);
+  // const createChat = useAction(api.chat.createChat);
   const uploadImages = useMutation(api.files.uploadImages);
 
   useEffect(() => {
     console.log(selectedModel.id);
   }, [selectedModel]);
 
-  const handleSendMessage = () => {
-    if (!getAllApiKeys) return;
-    const availableProviders: string[] = getAllApiKeys.map(
-      (key) => key.provider
-    );
+  // const handleSendMessage = () => {
+  //   if (!getAllApiKeys) return;
+  //   const availableProviders: string[] = getAllApiKeys.map(
+  //     (key) => key.provider
+  //   );
 
-    if (
-      !availableProviders.some(
-        (provider) => provider === selectedModel.provider
-      )
-    ) {
-      console.log("No provider key provided!");
-      toast.error("No API Key!", {
-        description: "Please provide the appropriate api key.",
-      });
-      return;
-    }
+  //   if (
+  //     !availableProviders.some(
+  //       (provider) => provider === selectedModel.provider
+  //     )
+  //   ) {
+  //     console.log("No provider key provided!");
+  //     toast.error("No API Key!", {
+  //       description: "Please provide the appropriate api key.",
+  //     });
+  //     return;
+  //   }
 
-    if (isLoading || !isAuthenticated) return;
+  //   if (isLoading || !isAuthenticated) return;
 
-    if (useage === null || useage === undefined || useage.messagesRemaining < 1)
-      return;
+  //   if (useage === null || useage === undefined || useage.messagesRemaining < 1)
+  //     return;
 
-    // const encryptedApiKey: string | undefined = getAllApiKeys.find(
-    //   (key) => key.provider === selectedModel.provider
-    // );
+  //   // const encryptedApiKey: string | undefined = getAllApiKeys.find(
+  //   //   (key) => key.provider === selectedModel.provider
+  //   // );
 
-    const encryptedApiKey = getAllApiKeys.find(
-      (key) => key.provider === selectedModel.provider
-    );
+  //   const encryptedApiKey = getAllApiKeys.find(
+  //     (key) => key.provider === selectedModel.provider
+  //   );
 
-    if (!encryptedApiKey) return;
+  //   if (!encryptedApiKey) return;
 
-    if (!activeChat) {
-      if (uploadedFiles.length > 0) {
-        const userMsg: CoreTextPart = {
-          type: "text",
-          text: message,
-        };
-        const tempFiles: (CoreImagePart | CoreFilePart)[] = [];
+  //   if (!activeChat) {
+  //     if (uploadedFiles.length > 0) {
+  //       const userMsg: CoreTextPart = {
+  //         type: "text",
+  //         text: message,
+  //       };
+  //       const tempFiles: (CoreImagePart | CoreFilePart)[] = [];
 
-        uploadedFiles.map((file) => {
-          if (file.mimeType === "application/pdf") {
-            const tempFile: CoreFilePart = {
-              type: "file",
-              data: file.data,
-              mimeType: file.mimeType,
-            };
-            tempFiles.push(tempFile);
-          } else {
-            const tempImg: CoreImagePart = {
-              type: "image",
-              image: file.data,
-              mimeType: file.mimeType,
-            };
-            tempFiles.push(tempImg);
-          }
-        });
+  //       uploadedFiles.map((file) => {
+  //         if (file.mimeType === "application/pdf") {
+  //           const tempFile: CoreFilePart = {
+  //             type: "file",
+  //             data: file.data,
+  //             mimeType: file.mimeType,
+  //           };
+  //           tempFiles.push(tempFile);
+  //         } else {
+  //           const tempImg: CoreImagePart = {
+  //             type: "image",
+  //             image: file.data,
+  //             mimeType: file.mimeType,
+  //           };
+  //           tempFiles.push(tempImg);
+  //         }
+  //       });
 
-        const content: CoreContent = [userMsg, ...tempFiles];
+  //       const content: CoreContent = [userMsg, ...tempFiles];
 
-        const msg: CoreMessage = {
-          role: "user",
-          content: content,
-        };
-        createChat({
-          history: [msg],
-          model: selectedModel.id,
-          useageId: useage._id,
-          credits: useage.messagesRemaining,
-          encryptedApiKey: encryptedApiKey.encryptedApiKey,
-        });
-      } else {
-        const msg: CoreMessage = {
-          role: "user",
-          content: message,
-        };
+  //       const msg: CoreMessage = {
+  //         role: "user",
+  //         content: content,
+  //       };
+  //       createChat({
+  //         history: [msg],
+  //         model: selectedModel.id,
+  //         useageId: useage._id,
+  //         credits: useage.messagesRemaining,
+  //         encryptedApiKey: encryptedApiKey.encryptedApiKey,
+  //       });
+  //     } else {
+  //       const msg: CoreMessage = {
+  //         role: "user",
+  //         content: message,
+  //       };
 
-        createChat({
-          history: [msg],
-          model: selectedModel.id,
-          useageId: useage._id,
-          credits: useage.messagesRemaining,
-          encryptedApiKey: encryptedApiKey.encryptedApiKey,
-        });
-      }
-    } else {
-      if (uploadedFiles.length > 0) {
-        const userMsg: CoreTextPart = {
-          type: "text",
-          text: message,
-        };
-        const tempFiles: (CoreImagePart | CoreFilePart)[] = [];
+  //       createChat({
+  //         history: [msg],
+  //         model: selectedModel.id,
+  //         useageId: useage._id,
+  //         credits: useage.messagesRemaining,
+  //         encryptedApiKey: encryptedApiKey.encryptedApiKey,
+  //       });
+  //     }
+  //   } else {
+  //     if (uploadedFiles.length > 0) {
+  //       const userMsg: CoreTextPart = {
+  //         type: "text",
+  //         text: message,
+  //       };
+  //       const tempFiles: (CoreImagePart | CoreFilePart)[] = [];
 
-        uploadedFiles.map((file) => {
-          if (file.mimeType === "application/pdf") {
-            const tempFile: CoreFilePart = {
-              type: "file",
-              data: file.data,
-              mimeType: file.mimeType,
-            };
-            tempFiles.push(tempFile);
-          } else {
-            const tempImg: CoreImagePart = {
-              type: "image",
-              image: file.data,
-              mimeType: file.mimeType,
-            };
-            tempFiles.push(tempImg);
-          }
-        });
+  //       uploadedFiles.map((file) => {
+  //         if (file.mimeType === "application/pdf") {
+  //           const tempFile: CoreFilePart = {
+  //             type: "file",
+  //             data: file.data,
+  //             mimeType: file.mimeType,
+  //           };
+  //           tempFiles.push(tempFile);
+  //         } else {
+  //           const tempImg: CoreImagePart = {
+  //             type: "image",
+  //             image: file.data,
+  //             mimeType: file.mimeType,
+  //           };
+  //           tempFiles.push(tempImg);
+  //         }
+  //       });
 
-        const content: CoreContent = [userMsg, ...tempFiles];
+  //       const content: CoreContent = [userMsg, ...tempFiles];
 
-        const msg: CoreMessage = {
-          role: "user",
-          content: content,
-        };
+  //       const msg: CoreMessage = {
+  //         role: "user",
+  //         content: content,
+  //       };
 
-        const oldHistory: CoreMessage[] = [];
+  //       const oldHistory: CoreMessage[] = [];
 
-        messages.map((m) => {
-          if (m.message) {
-            oldHistory.push({
-              role: m.message.role,
-              content: m.message.content,
-            });
-          }
-        });
+  //       messages.map((m) => {
+  //         if (m.message) {
+  //           oldHistory.push({
+  //             role: m.message.role,
+  //             content: m.message.content,
+  //           });
+  //         }
+  //       });
 
-        const newHistory: CoreMessage[] = [...oldHistory, msg];
+  //       const newHistory: CoreMessage[] = [...oldHistory, msg];
 
-        sendMessage({
-          conversationId: activeChat.id,
-          history: newHistory,
-          model: selectedModel.id,
-          useageId: useage._id,
-          credits: useage.messagesRemaining,
-          encryptedApiKey: encryptedApiKey.encryptedApiKey,
-        });
-      } else {
-        const msg: CoreMessage = {
-          role: "user",
-          content: message,
-        };
+  //       sendMessage({
+  //         conversationId: activeChat.id,
+  //         history: newHistory,
+  //         model: selectedModel.id,
+  //         useageId: useage._id,
+  //         credits: useage.messagesRemaining,
+  //         encryptedApiKey: encryptedApiKey.encryptedApiKey,
+  //       });
+  //     } else {
+  //       const msg: CoreMessage = {
+  //         role: "user",
+  //         content: message,
+  //       };
 
-        const oldHistory: CoreMessage[] = [];
+  //       const oldHistory: CoreMessage[] = [];
 
-        messages.map((m) => {
-          if (m.message) {
-            oldHistory.push({
-              role: m.message.role,
-              content: m.message.content,
-            });
-          }
-        });
+  //       messages.map((m) => {
+  //         if (m.message) {
+  //           oldHistory.push({
+  //             role: m.message.role,
+  //             content: m.message.content,
+  //           });
+  //         }
+  //       });
 
-        const newHistory: CoreMessage[] = [...oldHistory, msg];
+  //       const newHistory: CoreMessage[] = [...oldHistory, msg];
 
-        // createChat({
-        //   history: [msg],
-        //   model: selectedModel.id,
-        // });
+  //       // createChat({
+  //       //   history: [msg],
+  //       //   model: selectedModel.id,
+  //       // });
 
-        sendMessage({
-          conversationId: activeChat.id,
-          history: newHistory,
-          model: selectedModel.id,
-          useageId: useage._id,
-          credits: useage.messagesRemaining,
-          encryptedApiKey: encryptedApiKey.encryptedApiKey,
-        });
-      }
-    }
+  //       sendMessage({
+  //         conversationId: activeChat.id,
+  //         history: newHistory,
+  //         model: selectedModel.id,
+  //         useageId: useage._id,
+  //         credits: useage.messagesRemaining,
+  //         encryptedApiKey: encryptedApiKey.encryptedApiKey,
+  //       });
+  //     }
+  //   }
 
-    setMessage("");
-    setUploadedFiles([]);
-  };
+  //   setMessage("");
+  //   setUploadedFiles([]);
+  // };
 
   const handleSendMessageRoute = async () => {
     if (!user || !isSignedIn || !isLoaded || !getAllApiKeys) return;
@@ -462,6 +462,30 @@ export default function MessageInput({
         credits: useage.messagesRemaining,
         encryptedApiKey: encryptedApiKey.encryptedApiKey,
       });
+
+      const response = await fetch('/api/messages', {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          chat_id,
+          useageId: useage._id,
+          credits: useage.messagesRemaining - 1,
+          model: selectedModel.id,
+          encryptedApiKey: encryptedApiKey.encryptedApiKey,
+          history: newHistory
+        })
+      });
+
+      if (!response.ok) {
+        console.log("Failed to send message");
+        return;
+      }
+
+      const result = await response.json();
+      console.log("Result: ", result);
+
     } else {
       const msg: CoreMessage = {
         role: "user",
@@ -481,14 +505,39 @@ export default function MessageInput({
 
       const newHistory: CoreMessage[] = [...oldHistory, msg];
       console.log("Selected model: ", selectedModel.id);
-      sendMessage({
-        conversationId: chat_id,
-        history: newHistory,
-        model: selectedModel.id,
-        useageId: useage._id,
-        credits: useage.messagesRemaining,
-        encryptedApiKey: encryptedApiKey.encryptedApiKey,
+      // sendMessage({
+      //   conversationId: chat_id,
+      //   history: newHistory,
+      //   model: selectedModel.id,
+      //   useageId: useage._id,
+      //   credits: useage.messagesRemaining,
+      //   encryptedApiKey: encryptedApiKey.encryptedApiKey,
+      // });
+
+
+      const response = await fetch('/api/messages', {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          chat_id,
+          useageId: useage._id,
+          credits: useage.messagesRemaining - 1,
+          model: selectedModel.id,
+          encryptedApiKey: encryptedApiKey.encryptedApiKey,
+          history: newHistory
+        })
       });
+
+      if (!response.ok) {
+        console.log("Failed to send message");
+        return;
+      }
+
+      const result = await response.json();
+      console.log("Result: ", result);
+
     }
 
     setMessage("");

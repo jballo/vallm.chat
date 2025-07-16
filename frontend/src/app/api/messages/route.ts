@@ -157,6 +157,7 @@ export async function POST(req: Request) {
       },
       { token }
     );
+    return NextResponse.json({ content: "Successfully generated new message"}, { status: 200});
   } catch (error) {
     console.log("Error: ", error);
     return NextResponse.json(
