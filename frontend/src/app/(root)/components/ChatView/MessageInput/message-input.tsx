@@ -7,7 +7,7 @@ import Image from "next/image";
 import { ModelSelector } from "./model-selector";
 import { Button } from "@/atoms/button";
 import { useAction, useConvexAuth, useMutation } from "convex/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "../../../../../../convex/_generated/api";
 import { Id } from "../../../../../../convex/_generated/dataModel";
 import { toast } from "sonner";
@@ -60,14 +60,14 @@ interface MessageInputProps {
   }) => void;
   activeChat: { id: Id<"chats">; title: string } | null;
   useage:
-    | {
-        _id: Id<"useage">;
-        _creationTime: number;
-        user_id: string;
-        messagesRemaining: number;
-      }
-    | null
-    | undefined;
+  | {
+    _id: Id<"useage">;
+    _creationTime: number;
+    user_id: string;
+    messagesRemaining: number;
+  }
+  | null
+  | undefined;
 
   messages: {
     _id: Id<"messages">;
@@ -76,23 +76,23 @@ interface MessageInputProps {
     message: {
       role: "system" | "user" | "assistant" | "tool";
       content:
-        | string
-        | (
-            | {
-                text: string;
-                type: "text";
-              }
-            | {
-                mimeType?: string | undefined;
-                image: string;
-                type: "image";
-              }
-            | {
-                type: "file";
-                mimeType: string;
-                data: string;
-              }
-          )[];
+      | string
+      | (
+        | {
+          text: string;
+          type: "text";
+        }
+        | {
+          mimeType?: string | undefined;
+          image: string;
+          type: "image";
+        }
+        | {
+          type: "file";
+          mimeType: string;
+          data: string;
+        }
+      )[];
     };
     author_id: string;
     chat_id: Id<"chats">;
@@ -100,14 +100,14 @@ interface MessageInputProps {
   }[];
 
   getAllApiKeys:
-    | {
-        _id: Id<"userApiKeys">;
-        _creationTime: number;
-        user_id: string;
-        provider: string;
-        encryptedApiKey: string;
-      }[]
-    | undefined;
+  | {
+    _id: Id<"userApiKeys">;
+    _creationTime: number;
+    user_id: string;
+    provider: string;
+    encryptedApiKey: string;
+  }[]
+  | undefined;
 }
 
 export default function MessageInput({
@@ -127,6 +127,10 @@ export default function MessageInput({
   const sendMessage = useMutation(api.messages.sendMessage);
   const createChat = useAction(api.chat.createChat);
   const uploadImages = useMutation(api.files.uploadImages);
+
+  useEffect(() => {
+    console.log(selectedModel.id);
+  }, [selectedModel]);
 
   const handleSendMessage = () => {
     if (!getAllApiKeys) return;
@@ -399,8 +403,10 @@ export default function MessageInput({
 
       const result = await response.json();
       chat_id = result.content as Id<"chats">;
+      console.log("Chat created...");
     } else {
       chat_id = activeChat.id;
+      console.log("Chat selected...");
     }
 
     if (uploadedFiles.length > 0) {
@@ -447,7 +453,7 @@ export default function MessageInput({
       });
 
       const newHistory: CoreMessage[] = [...oldHistory, msg];
-
+      console.log("Selected model: ", selectedModel.id);
       sendMessage({
         conversationId: chat_id,
         history: newHistory,
@@ -474,7 +480,7 @@ export default function MessageInput({
       });
 
       const newHistory: CoreMessage[] = [...oldHistory, msg];
-
+      console.log("Selected model: ", selectedModel.id);
       sendMessage({
         conversationId: chat_id,
         history: newHistory,
@@ -536,57 +542,57 @@ export default function MessageInput({
           <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center gap-2">
             {(selectedModel.capabilities.includes("image") ||
               selectedModel.capabilities.includes("pdf")) && (
-              <UploadButton
-                endpoint="imageUploader"
-                className="ut-button:h-9 ut-button:w-9 ut-button:bg-transparent ut-allowed-content:hidden"
-                content={{
-                  button({ ready }) {
-                    if (ready)
-                      return <Paperclip className="w-4 h-4 text-[#99a1af]" />;
+                <UploadButton
+                  endpoint="imageUploader"
+                  className="ut-button:h-9 ut-button:w-9 ut-button:bg-transparent ut-allowed-content:hidden"
+                  content={{
+                    button({ ready }) {
+                      if (ready)
+                        return <Paperclip className="w-4 h-4 text-[#99a1af]" />;
 
-                    return <Ellipsis className="w-4 h-4 text-[#99a1af]" />;
-                  },
-                  allowedContent({ ready, isUploading }) {
-                    if (!ready)
                       return <Ellipsis className="w-4 h-4 text-[#99a1af]" />;
-                    if (isUploading)
-                      return (
-                        <LoaderCircle className="w-4 h-4 text-[#99a1af]" />
-                      );
-                    return "";
-                  },
-                }}
-                onClientUploadComplete={async (res) => {
-                  // Do something with the response
-                  console.log("Files: ", res);
-                  const filesFormatted: {
-                    name: string;
-                    url: string;
-                    size: number;
-                    mimeType: string;
-                  }[] = [];
+                    },
+                    allowedContent({ ready, isUploading }) {
+                      if (!ready)
+                        return <Ellipsis className="w-4 h-4 text-[#99a1af]" />;
+                      if (isUploading)
+                        return (
+                          <LoaderCircle className="w-4 h-4 text-[#99a1af]" />
+                        );
+                      return "";
+                    },
+                  }}
+                  onClientUploadComplete={async (res) => {
+                    // Do something with the response
+                    console.log("Files: ", res);
+                    const filesFormatted: {
+                      name: string;
+                      url: string;
+                      size: number;
+                      mimeType: string;
+                    }[] = [];
 
-                  res.map((file) => {
-                    filesFormatted.push({
-                      name: file.name,
-                      url: file.ufsUrl,
-                      size: file.size,
-                      mimeType: file.type,
+                    res.map((file) => {
+                      filesFormatted.push({
+                        name: file.name,
+                        url: file.ufsUrl,
+                        size: file.size,
+                        mimeType: file.type,
+                      });
                     });
-                  });
 
-                  const tempFiles = await uploadImages({
-                    files: filesFormatted,
-                  });
-                  setUploadedFiles((prevFiles) => [...prevFiles, ...tempFiles]);
-                  // alert("Upload Completed");
-                }}
-                onUploadError={(error: Error) => {
-                  // Do something with the error.
-                  alert(`ERROR! ${error.message}`);
-                }}
-              />
-            )}
+                    const tempFiles = await uploadImages({
+                      files: filesFormatted,
+                    });
+                    setUploadedFiles((prevFiles) => [...prevFiles, ...tempFiles]);
+                    // alert("Upload Completed");
+                  }}
+                  onUploadError={(error: Error) => {
+                    // Do something with the error.
+                    alert(`ERROR! ${error.message}`);
+                  }}
+                />
+              )}
             <ModelSelector
               selectedModel={selectedModel}
               setSelectedModel={setSelectedModel}

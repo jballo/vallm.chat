@@ -75,6 +75,8 @@ export const sendMessage = mutation({
 
     if (encryptionKeys == null) throw new Error("No encryption keys provided");
 
+    console.log(`Model Selected ${model}`);
+
     if (fileSupportedLLMs.includes(model)) {
       await ctx.scheduler.runAfter(0, internal.streaming.streamWithFiles, {
         messageId: message_id,

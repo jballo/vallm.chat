@@ -56,13 +56,13 @@ const allModels = [
     provider: "Groq",
     capabilities: ["multilingual"],
   },
-  {
-    id: "deepseek-r1-distill-llama-70b",
-    name: "DeepSeek R1 Distilled Llama",
-    icon: "deepseek",
-    provider: "OpenRouter",
-    capabilities: ["reasoning", "speed"],
-  },
+  // {
+  //   id: "deepseek-r1-distill-llama-70b",
+  //   name: "DeepSeek R1 Distilled Llama",
+  //   icon: "deepseek",
+  //   provider: "OpenRouter",
+  //   capabilities: ["reasoning", "speed"],
+  // },
   {
     id: "gemini-2.0-flash",
     name: "Gemini 2.0 Flash",

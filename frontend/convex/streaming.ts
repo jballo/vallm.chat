@@ -29,6 +29,9 @@ export const streamWithFiles = internalAction({
       createdAt,
     } = args;
 
+    console.log(`Streaming with files ${model}`);
+
+
     const derivedKey = deriveUserKey(entropy, createdAt, salt);
 
     const decryptedKey = decryptApiKey(encryptedApiKey, derivedKey);
@@ -111,6 +114,8 @@ export const streamFullText = internalAction({
       createdAt,
     } = args;
 
+    console.log(`Streaming full text with ${model}`);
+
     const derivedKey = deriveUserKey(entropy, createdAt, salt);
 
     const decryptedKey = decryptApiKey(encryptedApiKey, derivedKey);
@@ -155,6 +160,7 @@ export const streamFullText = internalAction({
     const CHUNK_BATCH_SIZE = 10; // Or every 10 chunks
 
     for await (const textPart of textStream) {
+      console.log(textPart);
       content += textPart;
       chunkCount++;
 
