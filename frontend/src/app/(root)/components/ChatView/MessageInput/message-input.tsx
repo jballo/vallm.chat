@@ -2,12 +2,12 @@
 
 import { Textarea } from "@/atoms/textarea";
 import { UploadButton } from "@/utils/uploadthing";
-import { Ellipsis, LoaderCircle, Paperclip, Send } from "lucide-react";
+import { Ellipsis, LoaderCircle, OctagonXIcon, Paperclip, Send } from "lucide-react";
 import Image from "next/image";
 import { ModelSelector } from "./model-selector";
 import { Button } from "@/atoms/button";
 import { useConvexAuth, useMutation } from "convex/react";
-import { useEffect, useState } from "react";
+import { useRef, useState } from "react";
 import { api } from "../../../../../../convex/_generated/api";
 import { Id } from "../../../../../../convex/_generated/dataModel";
 import { toast } from "sonner";
@@ -124,192 +124,15 @@ export default function MessageInput({
   const [message, setMessage] = useState("");
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
 
-  const sendMessage = useMutation(api.messages.sendMessage);
-  // const createChat = useAction(api.chat.createChat);
+  const abortControl = useRef<AbortController | null>(null);
+  const [messageLoading, setMessageLoading] = useState<boolean>(false);
   const uploadImages = useMutation(api.files.uploadImages);
 
-  useEffect(() => {
-    console.log(selectedModel.id);
-  }, [selectedModel]);
-
-  // const handleSendMessage = () => {
-  //   if (!getAllApiKeys) return;
-  //   const availableProviders: string[] = getAllApiKeys.map(
-  //     (key) => key.provider
-  //   );
-
-  //   if (
-  //     !availableProviders.some(
-  //       (provider) => provider === selectedModel.provider
-  //     )
-  //   ) {
-  //     console.log("No provider key provided!");
-  //     toast.error("No API Key!", {
-  //       description: "Please provide the appropriate api key.",
-  //     });
-  //     return;
-  //   }
-
-  //   if (isLoading || !isAuthenticated) return;
-
-  //   if (useage === null || useage === undefined || useage.messagesRemaining < 1)
-  //     return;
-
-  //   // const encryptedApiKey: string | undefined = getAllApiKeys.find(
-  //   //   (key) => key.provider === selectedModel.provider
-  //   // );
-
-  //   const encryptedApiKey = getAllApiKeys.find(
-  //     (key) => key.provider === selectedModel.provider
-  //   );
-
-  //   if (!encryptedApiKey) return;
-
-  //   if (!activeChat) {
-  //     if (uploadedFiles.length > 0) {
-  //       const userMsg: CoreTextPart = {
-  //         type: "text",
-  //         text: message,
-  //       };
-  //       const tempFiles: (CoreImagePart | CoreFilePart)[] = [];
-
-  //       uploadedFiles.map((file) => {
-  //         if (file.mimeType === "application/pdf") {
-  //           const tempFile: CoreFilePart = {
-  //             type: "file",
-  //             data: file.data,
-  //             mimeType: file.mimeType,
-  //           };
-  //           tempFiles.push(tempFile);
-  //         } else {
-  //           const tempImg: CoreImagePart = {
-  //             type: "image",
-  //             image: file.data,
-  //             mimeType: file.mimeType,
-  //           };
-  //           tempFiles.push(tempImg);
-  //         }
-  //       });
-
-  //       const content: CoreContent = [userMsg, ...tempFiles];
-
-  //       const msg: CoreMessage = {
-  //         role: "user",
-  //         content: content,
-  //       };
-  //       createChat({
-  //         history: [msg],
-  //         model: selectedModel.id,
-  //         useageId: useage._id,
-  //         credits: useage.messagesRemaining,
-  //         encryptedApiKey: encryptedApiKey.encryptedApiKey,
-  //       });
-  //     } else {
-  //       const msg: CoreMessage = {
-  //         role: "user",
-  //         content: message,
-  //       };
-
-  //       createChat({
-  //         history: [msg],
-  //         model: selectedModel.id,
-  //         useageId: useage._id,
-  //         credits: useage.messagesRemaining,
-  //         encryptedApiKey: encryptedApiKey.encryptedApiKey,
-  //       });
-  //     }
-  //   } else {
-  //     if (uploadedFiles.length > 0) {
-  //       const userMsg: CoreTextPart = {
-  //         type: "text",
-  //         text: message,
-  //       };
-  //       const tempFiles: (CoreImagePart | CoreFilePart)[] = [];
-
-  //       uploadedFiles.map((file) => {
-  //         if (file.mimeType === "application/pdf") {
-  //           const tempFile: CoreFilePart = {
-  //             type: "file",
-  //             data: file.data,
-  //             mimeType: file.mimeType,
-  //           };
-  //           tempFiles.push(tempFile);
-  //         } else {
-  //           const tempImg: CoreImagePart = {
-  //             type: "image",
-  //             image: file.data,
-  //             mimeType: file.mimeType,
-  //           };
-  //           tempFiles.push(tempImg);
-  //         }
-  //       });
-
-  //       const content: CoreContent = [userMsg, ...tempFiles];
-
-  //       const msg: CoreMessage = {
-  //         role: "user",
-  //         content: content,
-  //       };
-
-  //       const oldHistory: CoreMessage[] = [];
-
-  //       messages.map((m) => {
-  //         if (m.message) {
-  //           oldHistory.push({
-  //             role: m.message.role,
-  //             content: m.message.content,
-  //           });
-  //         }
-  //       });
-
-  //       const newHistory: CoreMessage[] = [...oldHistory, msg];
-
-  //       sendMessage({
-  //         conversationId: activeChat.id,
-  //         history: newHistory,
-  //         model: selectedModel.id,
-  //         useageId: useage._id,
-  //         credits: useage.messagesRemaining,
-  //         encryptedApiKey: encryptedApiKey.encryptedApiKey,
-  //       });
-  //     } else {
-  //       const msg: CoreMessage = {
-  //         role: "user",
-  //         content: message,
-  //       };
-
-  //       const oldHistory: CoreMessage[] = [];
-
-  //       messages.map((m) => {
-  //         if (m.message) {
-  //           oldHistory.push({
-  //             role: m.message.role,
-  //             content: m.message.content,
-  //           });
-  //         }
-  //       });
-
-  //       const newHistory: CoreMessage[] = [...oldHistory, msg];
-
-  //       // createChat({
-  //       //   history: [msg],
-  //       //   model: selectedModel.id,
-  //       // });
-
-  //       sendMessage({
-  //         conversationId: activeChat.id,
-  //         history: newHistory,
-  //         model: selectedModel.id,
-  //         useageId: useage._id,
-  //         credits: useage.messagesRemaining,
-  //         encryptedApiKey: encryptedApiKey.encryptedApiKey,
-  //       });
-  //     }
-  //   }
-
-  //   setMessage("");
-  //   setUploadedFiles([]);
-  // };
+  const handleStopStreaming = () => {
+    console.log("Streaming stopped...");
+    abortControl.current?.abort();
+    setMessageLoading(false);
+  }
 
   const handleSendMessageRoute = async () => {
     if (!user || !isSignedIn || !isLoaded || !getAllApiKeys) return;
@@ -339,6 +162,8 @@ export default function MessageInput({
     );
 
     if (!encryptedApiKey) return;
+
+    setMessageLoading(true);
 
     let chat_id: Id<"chats"> | null;
 
@@ -409,6 +234,11 @@ export default function MessageInput({
       console.log("Chat selected...");
     }
 
+    const ctrl = new AbortController();
+    abortControl.current = ctrl;
+
+    let newHistory: CoreMessage[] = [];
+
     if (uploadedFiles.length > 0) {
       const userMsg: CoreTextPart = {
         type: "text",
@@ -452,39 +282,7 @@ export default function MessageInput({
         }
       });
 
-      const newHistory: CoreMessage[] = [...oldHistory, msg];
-      console.log("Selected model: ", selectedModel.id);
-      sendMessage({
-        conversationId: chat_id,
-        history: newHistory,
-        model: selectedModel.id,
-        useageId: useage._id,
-        credits: useage.messagesRemaining,
-        encryptedApiKey: encryptedApiKey.encryptedApiKey,
-      });
-
-      const response = await fetch('/api/messages', {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          chat_id,
-          useageId: useage._id,
-          credits: useage.messagesRemaining - 1,
-          model: selectedModel.id,
-          encryptedApiKey: encryptedApiKey.encryptedApiKey,
-          history: newHistory
-        })
-      });
-
-      if (!response.ok) {
-        console.log("Failed to send message");
-        return;
-      }
-
-      const result = await response.json();
-      console.log("Result: ", result);
+      newHistory = [...oldHistory, msg];
 
     } else {
       const msg: CoreMessage = {
@@ -503,18 +301,11 @@ export default function MessageInput({
         }
       });
 
-      const newHistory: CoreMessage[] = [...oldHistory, msg];
-      console.log("Selected model: ", selectedModel.id);
-      // sendMessage({
-      //   conversationId: chat_id,
-      //   history: newHistory,
-      //   model: selectedModel.id,
-      //   useageId: useage._id,
-      //   credits: useage.messagesRemaining,
-      //   encryptedApiKey: encryptedApiKey.encryptedApiKey,
-      // });
+      newHistory = [...oldHistory, msg];
 
+    }
 
+    try {
       const response = await fetch('/api/messages', {
         method: "POST",
         headers: {
@@ -527,17 +318,34 @@ export default function MessageInput({
           model: selectedModel.id,
           encryptedApiKey: encryptedApiKey.encryptedApiKey,
           history: newHistory
-        })
+        }),
+        signal: ctrl.signal
       });
 
       if (!response.ok) {
-        console.log("Failed to send message");
+        console.error("Server error:", response.status, response.statusText);
+        toast.error("Message Failed", {
+          description: "There was an error processing your message. Please try again.",
+        });
         return;
       }
 
       const result = await response.json();
       console.log("Result: ", result);
-
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        // This is a user-initiated abort - should be handled as success
+        console.log("Request aborted by user");
+      } else {
+        // This is a system error (network issue, etc.)
+        console.error("System error:", error);
+        toast.error("Connection Error", {
+          description: "Failed to connect to the server. Please check your connection and try again.",
+        });
+      }
+    } finally {
+      abortControl.current = null;
+      setMessageLoading(false);
     }
 
     setMessage("");
@@ -646,14 +454,25 @@ export default function MessageInput({
               selectedModel={selectedModel}
               setSelectedModel={setSelectedModel}
             />
-            <Button
-              size="icon"
-              className="h-9 w-9 rounded-xl transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-              onClick={handleSendMessageRoute}
-              disabled={!message.trim()}
-            >
-              <Send className="h-4 w-4" />
-            </Button>
+            {messageLoading ? (
+              <Button
+                size="icon"
+                className="h-9 w-9 rounded-xl transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={handleStopStreaming}
+              >
+                <OctagonXIcon className="h-4 w-4" />
+              </Button>
+            ) : (
+              <Button
+                size="icon"
+                className="h-9 w-9 rounded-xl transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={handleSendMessageRoute}
+                disabled={!message.trim()}
+              >
+                <Send className="h-4 w-4" />
+              </Button>
+
+            )}
           </div>
         </div>
       </div>

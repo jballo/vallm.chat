@@ -1,3 +1,5 @@
+export const runtime = 'edge';
+
 import { auth } from "@clerk/nextjs/server";
 import { fetchAction, fetchMutation } from "convex/nextjs";
 import { NextResponse } from "next/server";
@@ -94,72 +96,107 @@ export async function POST(req: Request) {
       baseURL: "https://generativelanguage.googleapis.com/v1beta",
       apiKey: decryptedApiKey.apiKey,
     });
-
-    let textStream;
-
-    if (fileSupportedLLMs.includes(model)) {
-      ({ textStream } = streamText({
-        model: google(model, {
+    
+    const modelInvocation = fileSupportedLLMs.includes(model) ? google(model, {
           useSearchGrounding: true,
-        }),
-        system: "You are a professional assistant",
-        messages: formattedHistory,
-      }));
-    } else {
-      ({ textStream } = streamText({
-        model: groq(model),
-        system: "You are a professional assistant",
-        messages: formattedHistory,
-      }));
-    }
-
+        }) : groq(model);
+        
+    const { textStream } = streamText({
+      model: modelInvocation,
+      system: "You are a professional assistant",
+      messages: formattedHistory,
+      abortSignal: req.signal
+    });
+  
     let content = "";
     let chunkCount = 0;
     let lastUpdate = Date.now();
     const UPDATE_INTERVAL = 500; // Update every 500ms
     const CHUNK_BATCH_SIZE = 10; // Or every 10 chunks
+    let userAborted = false;
 
-    for await (const textPart of textStream) {
-      content += textPart;
-      chunkCount++;
-
-      const now = Date.now();
-      const shouldUpdate =
-        chunkCount >= CHUNK_BATCH_SIZE || now - lastUpdate >= UPDATE_INTERVAL;
-
-      if (shouldUpdate) {
-        await fetchMutation(
-          api.messages.updateMessageRoute,
-          {
-            messageId,
-            content,
-          },
-          { token }
-        );
-        chunkCount = 0;
-        lastUpdate = now;
+    try {
+      for await (const textPart of textStream) {
+        if (req.signal?.aborted) {
+          console.log("User aborted request, stopping stream processing");
+          userAborted = true;
+          break;
+        }
+  
+        content += textPart;
+        chunkCount++;
+  
+        const now = Date.now();
+        const shouldUpdate =
+          chunkCount >= CHUNK_BATCH_SIZE || now - lastUpdate >= UPDATE_INTERVAL;
+  
+        if (shouldUpdate) {
+          if (req.signal?.aborted) {
+            console.log("User aborted during update");
+            userAborted = true;
+            break;
+          }
+          await fetchMutation(
+            api.messages.updateMessageRoute,
+            {
+              messageId,
+              content,
+            },
+            { token }
+          );
+          chunkCount = 0;
+          lastUpdate = now;
+        }
+      }
+    } catch (streamError) {
+      if (streamError instanceof Error) {
+        if(streamError.name === "AbortError" ||
+          streamError.name.includes('aborted') ||
+          streamError.name.includes('ResponseAborted')
+        ) {
+          if (req.signal?.aborted) {
+            console.log("User-initiated stream abort:", streamError.message);
+            userAborted = true;
+          } else {
+            // System interruption - this is an error condition
+            console.error("System interruption:", streamError.message);
+            throw streamError;
+          }
+        } else {
+          console.error("Stream error: ", streamError);
+          throw streamError;
+        }
+      } else {
+        throw streamError;
       }
     }
-
-    await fetchMutation(
-      api.messages.updateMessageRoute,
-      {
-        messageId,
-        content,
-      },
-      { token }
-    );
-
-    await fetchMutation(
-      api.messages.completeMessageRoute,
-      {
-        messageId,
-      },
-      { token }
-    );
-    return NextResponse.json({ content: "Successfully generated new message"}, { status: 200});
+    
+    if (userAborted || !req.signal?.aborted) {
+      await fetchMutation(
+        api.messages.updateMessageRoute,
+        {
+          messageId,
+          content,
+        },
+        { token }
+      );
+  
+      await fetchMutation(
+        api.messages.completeMessageRoute,
+        {
+          messageId,
+        },
+        { token }
+      );
+    }
+    console.log("end")
+    console.log(userAborted ? "Stream stopped by user" : "Successfully generated new message");
+    return NextResponse.json({ 
+      content: userAborted ? "Stream stopped by user" : "Successfully generated new message"
+    }, { status: 200 });
   } catch (error) {
     console.log("Error: ", error);
+    
     return NextResponse.json(
       { error: "Failed to send message" },
       { status: 500 }
