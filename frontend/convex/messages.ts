@@ -117,7 +117,7 @@ export const saveUserMessage = mutation({
       author_id: idendity.subject,
       chat_id,
       message: userMessage,
-      isComplete: false,
+      isComplete: true,
       model: model,
     });
   },
@@ -214,9 +214,11 @@ export const completeMessageRoute = mutation({
   },
 });
 
-export const completeMessage = internalMutation({
+export const completeMessage = mutation({
   args: { messageId: v.id("messages") },
   handler: async (ctx, args) => {
+    const idenity = await ctx.auth.getUserIdentity();
+    if (!idenity) throw new Error("Not authenticated");
     // update appropriate message with the completed status
     const messageId = args.messageId;
 

@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef } from "react";
 import { Id } from "../../../../../../convex/_generated/dataModel";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../../../../convex/_generated/api";
 import { MessageRenderer } from "./MessageRenderer";
 import { Button } from "@/atoms/button";
-import { GitBranch, Paperclip, RefreshCcw, SquarePen } from "lucide-react";
+import { GitBranch, Paperclip, RefreshCcw } from "lucide-react";
 import Image from "next/image";
+import { cn } from "@/lib/utils";
 
 interface CoreTextPart {
   type: "text";
@@ -38,23 +39,23 @@ interface QueryMessage {
   message: {
     role: "user" | "system" | "assistant" | "tool";
     content:
-      | string
-      | (
-          | {
-              text: string;
-              type: "text";
-            }
-          | {
-              mimeType?: string | undefined;
-              image: string;
-              type: "image";
-            }
-          | {
-              type: "file";
-              mimeType: string;
-              data: string;
-            }
-        )[];
+    | string
+    | (
+      | {
+        text: string;
+        type: "text";
+      }
+      | {
+        mimeType?: string | undefined;
+        image: string;
+        type: "image";
+      }
+      | {
+        type: "file";
+        mimeType: string;
+        data: string;
+      }
+    )[];
   };
   author_id: string;
   chat_id: Id<"chats">;
@@ -62,47 +63,48 @@ interface QueryMessage {
 }
 
 interface ChatMessagesProps {
-  messages: QueryMessage[];
   activeChat: { id: Id<"chats">; title: string } | null;
   activeTab: "myChats" | "shared";
   useage:
-    | {
-        _id: Id<"useage">;
-        _creationTime: number;
-        user_id: string;
-        messagesRemaining: number;
-      }
-    | null
-    | undefined;
+  | {
+    _id: Id<"useage">;
+    _creationTime: number;
+    user_id: string;
+    messagesRemaining: number;
+  }
+  | null
+  | undefined;
   allAvailableApiKeys:
-    | {
-        _id: Id<"userApiKeys">;
-        _creationTime: number;
-        user_id: string;
-        provider: string;
-        encryptedApiKey: string;
-      }[]
-    | undefined;
+  | {
+    _id: Id<"userApiKeys">;
+    _creationTime: number;
+    user_id: string;
+    provider: string;
+    encryptedApiKey: string;
+  }[]
+  | undefined;
+  messageLoading: boolean;
+  streamedMessage: string;
 }
 
 export function ChatMessages({
-  messages,
   activeChat,
   activeTab,
   useage,
   allAvailableApiKeys,
+  messageLoading,
+  streamedMessage,
 }: ChatMessagesProps) {
-  // Memoize the messages rendering
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const branchChat = useMutation(api.chat.branchChat);
   const regenerateResponse = useMutation(api.messages.regnerateResponse);
 
-  useEffect(() => {
-    // Use requestAnimationFrame to ensure DOM is updated
-    requestAnimationFrame(() => {
-      scrollToBottom();
-    });
-  }, [messages]);
+
+  const queryVariables = useMemo(() => {
+    return activeChat ? { conversationId: activeChat.id } : "skip";
+  }, [activeChat]);
+
+  const messages = useQuery(api.messages.getMessages, queryVariables) || [];
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({
@@ -110,6 +112,15 @@ export function ChatMessages({
       block: "end",
     });
   };
+
+
+  useEffect(() => {
+    // Use requestAnimationFrame to ensure DOM is updated
+    requestAnimationFrame(() => {
+      scrollToBottom();
+    });
+  }, [messages, streamedMessage]);
+
 
   const onBranchChat = async (message_id: Id<"messages">) => {
     if (!activeChat) return;
@@ -156,13 +167,13 @@ export function ChatMessages({
     const history: CoreMessage[] =
       msg.message.role === "user"
         ? messages.slice(0, targetIndex + 1).map((m) => ({
-            role: m.message.role,
-            content: m.message.content,
-          }))
+          role: m.message.role,
+          content: m.message.content,
+        }))
         : messages.slice(0, targetIndex).map((m) => ({
-            role: m.message.role,
-            content: m.message.content,
-          }));
+          role: m.message.role,
+          content: m.message.content,
+        }));
 
     const conversation_id = msg.chat_id;
 
@@ -185,126 +196,113 @@ export function ChatMessages({
     });
   };
 
-  // Memoize the messages rendering
-  const renderedMessages = useMemo(
+  const renderedMessagesOptimal = useMemo(
     () =>
       messages.map((msg) => (
-        <div key={msg._id} className="mb-8">
-          {msg.message.role === "assistant" ? (
-            <div className="flex flex-col justify-start group">
-              <div className="max-w-[80%] bg-muted rounded-2xl rounded-bl-md px-4 py-3">
-                {Array.isArray(msg.message.content) ? (
-                  msg.message.content[0].type === "text" && (
+        <div key={msg._id} className={cn(`mb-8`, {
+          "hidden": msg.isComplete === false && messageLoading,
+        })}>
+          <div className={cn(`flex flex-col group`, {
+            'justify-start': msg.message.role === "assistant",
+            "items-end": msg.message.role === "user",
+          })}>
+            <div className={cn(`max-w-[80%] rounded-2xl rounded-br-md px-4 py-3`, {
+              'bg-muted': msg.message.role === "assistant",
+              'bg-primary text-primary-foreground': msg.message.role === "user"
+            })}>
+              {Array.isArray(msg.message.content) ? (
+                <>
+                  {msg.message.content[0].type === "text" && (
                     <MessageRenderer content={msg.message.content[0].text} />
-                  )
-                ) : msg.message.content.length === 0 ? (
-                  <div className="flex space-x-5 justify-center p-4">
-                    <span className="sr-only">Loading...</span>
-                    <div className="h-2 w-2 bg-primary rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-                    <div className="h-2 w-2 bg-primary rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-                    <div className="h-2 w-2 bg-primary rounded-full animate-bounce"></div>
-                  </div>
-                ) : (
-                  <MessageRenderer content={msg.message.content} />
-                )}
-              </div>
-              <div className="flex flex-row gap-2 p-2 items-center">
-                <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-row items-center gap-2">
-                  {activeTab === "myChats" && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-9 w-9 text-gray-400 hover:text-white hover:bg-[#2a2a2a] rounded-xl transition-colors duration-200"
-                      onClick={() => onBranchChat(msg._id)}
-                    >
-                      <GitBranch className="h-3 w-3" />
-                    </Button>
                   )}
+                  <div className="flex flex-row gap-2 mt-2">
+                    {msg.message.content.slice(1).map((item, index) => {
+                      if (item.type === "image") {
+                        return (
+                          <Image
+                            key={index}
+                            alt="Uploaded image"
+                            src={item.image || ""}
+                            width={70}
+                            height={50}
+                            className="rounded-xl border border-[#3a3340] object-cover"
+                          />
+                        );
+                      } else if (item.type === "file") {
+                        return (
+                          <div
+                            key={index}
+                            className="flex flex-row items-center w-[165px] h-[50px] overflow-hidden text-xs text-white p-3 rounded-xl border border-[#3a3340] gap-1"
+                          >
+                            <Paperclip className="h-4 w-4" />{" "}
+                            {item.data?.split("/").pop()}
+                          </div>
+                        );
+                      }
+                    })}
+                  </div>
+                </>
+              ) : msg.message.content.length === 0 ? (
+                <div className="flex space-x-5 justify-center p-4">
+                  <span className="sr-only">Loading...</span>
+                  <div className="h-2 w-2 bg-primary rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                  <div className="h-2 w-2 bg-primary rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                  <div className="h-2 w-2 bg-primary rounded-full animate-bounce"></div>
+                </div>
+              ) : (
+                <MessageRenderer content={msg.message.content} />
+              )}
+            </div>
+            <div className="flex flex-row gap-2 p-2 items-center">
+              <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-row items-center gap-2">
+                {msg.message.role === "assistant" && activeTab === "myChats" && (
                   <Button
                     variant="ghost"
                     size="icon"
                     className="h-9 w-9 text-gray-400 hover:text-white hover:bg-[#2a2a2a] rounded-xl transition-colors duration-200"
-                    onClick={() => regenerateMessage(msg)}
+                    onClick={() => onBranchChat(msg._id)}
                   >
-                    <RefreshCcw className="h-3 w-3" />
+                    <GitBranch className="h-3 w-3" />
                   </Button>
-                  <p className="text-xs">{msg.model}</p>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-col items-end group">
-              <div className="max-w-[80%] bg-primary text-primary-foreground rounded-2xl rounded-br-md px-4 py-3">
-                {Array.isArray(msg.message.content) ? (
-                  <>
-                    {msg.message.content[0].type === "text" ? (
-                      <MessageRenderer content={msg.message.content[0].text} />
-                    ) : (
-                      ""
-                    )}
-                    <div className="flex flex-row gap-2 mt-2">
-                      {msg.message.content.slice(1).map((item, index) => {
-                        if (item.type === "image") {
-                          return (
-                            <Image
-                              key={index}
-                              alt="Uploaded image"
-                              src={item.image || ""}
-                              width={70}
-                              height={50}
-                              className="rounded-xl border border-[#3a3340] object-cover"
-                            />
-                          );
-                        } else if (item.type === "file") {
-                          return (
-                            <div
-                              key={index}
-                              className="flex flex-row items-center w-[165px] h-[50px] overflow-hidden text-xs text-white p-3 rounded-xl border border-[#3a3340] gap-1"
-                            >
-                              <Paperclip className="h-4 w-4" />{" "}
-                              {item.data?.split("/").pop()}
-                            </div>
-                          );
-                        }
-                      })}
-                    </div>
-                  </>
-                ) : (
-                  <MessageRenderer content={msg.message.content} />
                 )}
-              </div>
-              <div className="flex flex-row gap-2 p-2 items-center">
-                <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-row items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-9 w-9 text-gray-400 hover:text-white hover:bg-[#2a2a2a] rounded-xl transition-colors duration-200"
-                    onClick={() => regenerateMessage(msg)}
-                  >
-                    <RefreshCcw className="h-3 w-3" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="hidden h-9 w-9 text-gray-400 hover:text-white hover:bg-[#2a2a2a] rounded-xl transition-colors duration-200"
-                  >
-                    <SquarePen className="h-3 w-3" />
-                  </Button>
-                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 text-gray-400 hover:text-white hover:bg-[#2a2a2a] rounded-xl transition-colors duration-200"
+                  onClick={() => regenerateMessage(msg)}
+                >
+                  <RefreshCcw className="h-3 w-3" />
+                </Button>
+                <p className="text-xs">{msg.model}</p>
               </div>
             </div>
-          )}
+          </div>
         </div>
       )),
-    [messages]
+    [messages, messageLoading, activeTab]
   );
+
+  const streamedOptimal = useMemo(() => (<div className={cn(`flex flex-col group justify-start`, {
+    "hidden": (messages.at(-1)?.isComplete === true && messageLoading === false) || activeChat === null,
+  })}>
+    <div className={cn(`max-w-[80%] rounded-2xl rounded-br-md px-4 py-3 bg-muted`)}>
+      {streamedMessage.length < 1 ? (<div className="flex space-x-5 justify-center p-4">
+        <span className="sr-only">Loading...</span>
+        <div className="h-2 w-2 bg-primary rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+        <div className="h-2 w-2 bg-primary rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+        <div className="h-2 w-2 bg-primary rounded-full animate-bounce"></div>
+      </div>) : (
+        <MessageRenderer content={streamedMessage} />
+      )}
+    </div>
+  </div>), [streamedMessage, messages.at(-1)?.isComplete, activeChat]);
 
   return (
     <div className="flex-1 overflow-y-auto p-6">
       <div className="max-w-4xl mx-auto">
-        {renderedMessages}
+        {renderedMessagesOptimal}
+        {streamedOptimal}
         <div ref={messagesEndRef} />
-        {/* Add this empty div as a scroll anchor */}
       </div>
     </div>
   );

@@ -6,12 +6,13 @@ import { Ellipsis, LoaderCircle, OctagonXIcon, Paperclip, Send } from "lucide-re
 import Image from "next/image";
 import { ModelSelector } from "./model-selector";
 import { Button } from "@/atoms/button";
-import { useConvexAuth, useMutation } from "convex/react";
-import { useRef, useState } from "react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
+import { useMemo, useRef, useState } from "react";
 import { api } from "../../../../../../convex/_generated/api";
 import { Id } from "../../../../../../convex/_generated/dataModel";
 import { toast } from "sonner";
 import { useUser } from "@clerk/nextjs";
+import { RequestOptions } from "ai";
 
 interface CoreTextPart {
   type: "text";
@@ -68,37 +69,6 @@ interface MessageInputProps {
   }
   | null
   | undefined;
-
-  messages: {
-    _id: Id<"messages">;
-    _creationTime: number;
-    model?: string | undefined;
-    message: {
-      role: "system" | "user" | "assistant" | "tool";
-      content:
-      | string
-      | (
-        | {
-          text: string;
-          type: "text";
-        }
-        | {
-          mimeType?: string | undefined;
-          image: string;
-          type: "image";
-        }
-        | {
-          type: "file";
-          mimeType: string;
-          data: string;
-        }
-      )[];
-    };
-    author_id: string;
-    chat_id: Id<"chats">;
-    isComplete: boolean;
-  }[];
-
   getAllApiKeys:
   | {
     _id: Id<"userApiKeys">;
@@ -108,25 +78,41 @@ interface MessageInputProps {
     encryptedApiKey: string;
   }[]
   | undefined;
+  messageLoading: boolean;
+  setMessageLoading: (val: boolean) => void;
+  complete: (prompt: string, options?: RequestOptions) => Promise<string | null | undefined>
 }
 
 export default function MessageInput({
   selectedModel,
   setSelectedModel,
   activeChat,
-  messages,
   useage,
   getAllApiKeys,
+  messageLoading,
+  setMessageLoading,
+  complete,
 }: MessageInputProps) {
   const { user, isLoaded, isSignedIn } = useUser();
   const { isLoading, isAuthenticated } = useConvexAuth();
+
+  const queryVariables = useMemo(() => {
+    return activeChat ? { conversationId: activeChat.id } : "skip";
+  }, [activeChat]);
+
+  const messages = useQuery(api.messages.getMessages, queryVariables) || [];
 
   const [message, setMessage] = useState("");
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
 
   const abortControl = useRef<AbortController | null>(null);
-  const [messageLoading, setMessageLoading] = useState<boolean>(false);
   const uploadImages = useMutation(api.files.uploadImages);
+  // const { completion, complete } = useCompletion({
+  //   api: '/api/completion',
+  // });
+  // const { messages: chatMessages } = useChat({
+  //   api: '/api/messages'
+  // });
 
   const handleStopStreaming = () => {
     console.log("Streaming stopped...");
@@ -306,32 +292,17 @@ export default function MessageInput({
     }
 
     try {
-      const response = await fetch('/api/messages', {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
+
+      await complete(
+        JSON.stringify({
           chat_id,
           useageId: useage._id,
           credits: useage.messagesRemaining - 1,
           model: selectedModel.id,
           encryptedApiKey: encryptedApiKey.encryptedApiKey,
           history: newHistory
-        }),
-        signal: ctrl.signal
-      });
-
-      if (!response.ok) {
-        console.error("Server error:", response.status, response.statusText);
-        toast.error("Message Failed", {
-          description: "There was an error processing your message. Please try again.",
-        });
-        return;
-      }
-
-      const result = await response.json();
-      console.log("Result: ", result);
+        })
+      )
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') {
         // This is a user-initiated abort - should be handled as success
@@ -345,7 +316,7 @@ export default function MessageInput({
       }
     } finally {
       abortControl.current = null;
-      setMessageLoading(false);
+      console.log("Streaming stopped...");
     }
 
     setMessage("");
@@ -362,6 +333,9 @@ export default function MessageInput({
 
   return (
     <div className="p-6 bg-card">
+      {/* <div>
+        {completion}
+      </div> */}
       <div className="flex flex-col  gap-3 max-w-4xl mx-auto">
         <div className="flex flex-row w-full gap-4">
           {uploadedFiles.map((file, index) => {

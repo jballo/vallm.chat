@@ -9,6 +9,8 @@ import { useUser } from "@clerk/nextjs";
 import ChatMainHeader from "./Header/chat-main-header";
 import MessageInput from "./MessageInput/message-input";
 import MessageArea from "./MessageArea/MessageArea";
+import { useState } from "react";
+import { useCompletion } from "@ai-sdk/react";
 
 // const CreditCount = dynamic(() => import("./Header/CreditCount"), {
 //   ssr: true,
@@ -42,12 +44,13 @@ export function ChatView({
   activeTab,
 }: ChatMainProps) {
   const { user, isLoaded, isSignedIn } = useUser();
+  const [messageLoading, setMessageLoading] = useState<boolean>(false);
 
-  const messages =
-    useQuery(
-      api.messages.getMessages,
-      activeChat ? { conversationId: activeChat.id } : "skip"
-    ) || [];
+  // const queryVariables = useMemo(() => {
+  //   return activeChat ? { conversationId: activeChat.id } : "skip";
+  // }, [activeChat]);
+
+  // const messages = useQuery(api.messages.getMessages, queryVariables) || [];
 
   const useage = useQuery(
     api.users.getUsage,
@@ -57,6 +60,17 @@ export function ChatView({
     api.keysMutations.getAllApiKeys,
     !user || !isLoaded || !isSignedIn ? "skip" : {}
   );
+
+  const { completion, complete } = useCompletion({
+    api: '/api/messages',
+    experimental_throttle: 50,
+    onFinish: () => {
+      setMessageLoading(false);
+    },
+    onError: () => {
+      setMessageLoading(false);
+    }
+  });
 
   // const branchChat = useMutation(api.chat.branchChat);
 
@@ -72,10 +86,11 @@ export function ChatView({
       {/* Chat messages */}
       <MessageArea
         activeChat={activeChat}
-        messages={messages}
         useage={useage}
         getAllApiKeys={getAllApiKeys}
         activeTab={activeTab}
+        messageLoading={messageLoading}
+        streamedMessage={completion}
       />
 
       {/* Message input */}
@@ -83,9 +98,11 @@ export function ChatView({
         selectedModel={selectedModel}
         setSelectedModel={setSelectedModel}
         activeChat={activeChat}
-        messages={messages}
         useage={useage}
         getAllApiKeys={getAllApiKeys}
+        messageLoading={messageLoading}
+        setMessageLoading={setMessageLoading}
+        complete={complete}
       />
     </div>
   );

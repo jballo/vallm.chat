@@ -4,7 +4,7 @@ import { internalAction } from "./_generated/server";
 import { coreMessage } from "./schema/types";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { CoreMessage, streamText } from "ai";
-import { internal } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import { createGroq } from "@ai-sdk/groq";
 import { decryptApiKey, deriveUserKey } from "./utils/encryption";
 
@@ -87,7 +87,7 @@ export const streamWithFiles = internalAction({
       content,
     });
 
-    await ctx.runMutation(internal.messages.completeMessage, {
+    await ctx.runMutation(api.messages.completeMessage, {
       messageId,
     });
   },
@@ -184,7 +184,7 @@ export const streamFullText = internalAction({
       content,
     });
 
-    await ctx.runMutation(internal.messages.completeMessage, {
+    await ctx.runMutation(api.messages.completeMessage, {
       messageId,
     });
   },

@@ -13,9 +13,7 @@ interface MessageRendererProps {
 export function MessageRenderer({ content }: MessageRendererProps) {
   const { theme } = useTheme();
 
-  const prismStyle = useMemo(() => {
-    return theme === "dark" ? oneDark : nord;
-  }, [theme]);
+
 
   const components: Components = useMemo(
     () => ({
@@ -25,6 +23,8 @@ export function MessageRenderer({ content }: MessageRendererProps) {
         const language = match ? match[1] : "";
         const isInline = !className;
 
+        const currentStyle = theme === "dark" ? oneDark : nord;
+
         if (!isInline && language) {
           return (
             <div className="my-3 rounded-lg overflow-hidden">
@@ -32,7 +32,7 @@ export function MessageRenderer({ content }: MessageRendererProps) {
                 {language}
               </div>
               <SyntaxHighlighter
-                style={prismStyle}
+                style={currentStyle}
                 language={language}
                 PreTag="div"
                 customStyle={{
@@ -121,7 +121,7 @@ export function MessageRenderer({ content }: MessageRendererProps) {
         );
       },
     }),
-    [prismStyle]
+    [theme]
   );
 
   const renderedContent = useMemo(

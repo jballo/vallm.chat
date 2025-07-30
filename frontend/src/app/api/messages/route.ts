@@ -17,9 +17,24 @@ export async function POST(req: Request) {
     if (!token) throw new Error("Failed to authenticate with jwt");
 
     const body = await req.json();
+    // console.log("Body: ", body);
+    // console.log("Type for body: ", typeof body);
+    // console.log("prompt", body.prompt);
+    const stringifiedBody = body.prompt;
+    const parsedBody = JSON.parse(stringifiedBody);
+    
+    // console.log("parsedBody type: ", typeof parsedBody);
+    // console.log("encryptedApiKey", parsedBody.encryptedApiKey);
 
-    const { chat_id, useageId, credits, model, encryptedApiKey, history } =
-      body;
+
+    const { 
+      chat_id,
+      useageId, 
+      credits, 
+      model, 
+      encryptedApiKey, 
+      history 
+    } = parsedBody;
 
     if (!encryptedApiKey) throw new Error("No encrypted api key provided!");
 
@@ -100,42 +115,59 @@ export async function POST(req: Request) {
     const modelInvocation = fileSupportedLLMs.includes(model) ? google(model, {
           useSearchGrounding: true,
         }) : groq(model);
-        
-    const { textStream } = streamText({
+    
+    const result = streamText({
       model: modelInvocation,
       system: "You are a professional assistant",
       messages: formattedHistory,
-      abortSignal: req.signal
+      abortSignal: req.signal,
     });
-  
-    let content = "";
-    let chunkCount = 0;
-    let lastUpdate = Date.now();
-    const UPDATE_INTERVAL = 500; // Update every 500ms
-    const CHUNK_BATCH_SIZE = 10; // Or every 10 chunks
-    let userAborted = false;
+    
+    (async () => {
+      let content = "";
+      // let chunkCount = 0;
+      // let lastUpdate = Date.now();
+      // const UPDATE_INTERVAL = 800; // Update every 800ms
+      // const CHUNK_BATCH_SIZE = 40; // Or every 40 chunks
 
-    try {
-      for await (const textPart of textStream) {
-        if (req.signal?.aborted) {
-          console.log("User aborted request, stopping stream processing");
-          userAborted = true;
-          break;
-        }
-  
-        content += textPart;
-        chunkCount++;
-  
-        const now = Date.now();
-        const shouldUpdate =
-          chunkCount >= CHUNK_BATCH_SIZE || now - lastUpdate >= UPDATE_INTERVAL;
-  
-        if (shouldUpdate) {
-          if (req.signal?.aborted) {
-            console.log("User aborted during update");
-            userAborted = true;
-            break;
-          }
+      for await (const chunk of result.fullStream) {
+        // Process each chunk here - save to DB, log, etc.
+        console.log('Chunk type:', chunk.type);
+        
+        if (chunk.type === 'text-delta') {
+          // Handle text chunks
+          // console.log('Text delta:', chunk.textDelta);
+          content += chunk.textDelta;
+          // chunkCount++;
+
+          // const now = Date.now();
+          // const shouldUpdate = chunkCount >= CHUNK_BATCH_SIZE || now - lastUpdate >= UPDATE_INTERVAL;
+
+          // if (shouldUpdate) {
+          //   await fetchMutation(
+          //     api.messages.updateMessageRoute,
+          //     {
+          //       messageId,
+          //       content,
+          //     },
+          //     { token }
+          //   );
+          //   chunkCount = 0;
+          //   lastUpdate = now;
+          // }
+
+          // await fetchMutation(
+          //   api.messages.updateMessageRoute,
+          //   {
+          //     messageId,
+          //     content,
+          //   },
+          //   { token }
+          // );
+
+          console.log("content: ", content);
+        } else if (chunk.type === 'finish') {
+          // Handle completion
           await fetchMutation(
             api.messages.updateMessageRoute,
             {
@@ -144,56 +176,17 @@ export async function POST(req: Request) {
             },
             { token }
           );
-          chunkCount = 0;
-          lastUpdate = now;
+          console.log('Stream finished:', chunk.finishReason, chunk.usage);
+          await fetchMutation(api.messages.completeMessage, {
+            messageId: messageId
+          },
+          { token }
+        );
         }
       }
-    } catch (streamError) {
-      if (streamError instanceof Error) {
-        if(streamError.name === "AbortError" ||
-          streamError.name.includes('aborted') ||
-          streamError.name.includes('ResponseAborted')
-        ) {
-          if (req.signal?.aborted) {
-            console.log("User-initiated stream abort:", streamError.message);
-            userAborted = true;
-          } else {
-            // System interruption - this is an error condition
-            console.error("System interruption:", streamError.message);
-            throw streamError;
-          }
-        } else {
-          console.error("Stream error: ", streamError);
-          throw streamError;
-        }
-      } else {
-        throw streamError;
-      }
-    }
-    
-    if (userAborted || !req.signal?.aborted) {
-      await fetchMutation(
-        api.messages.updateMessageRoute,
-        {
-          messageId,
-          content,
-        },
-        { token }
-      );
-  
-      await fetchMutation(
-        api.messages.completeMessageRoute,
-        {
-          messageId,
-        },
-        { token }
-      );
-    }
-    console.log("end")
-    console.log(userAborted ? "Stream stopped by user" : "Successfully generated new message");
-    return NextResponse.json({ 
-      content: userAborted ? "Stream stopped by user" : "Successfully generated new message"
-    }, { status: 200 });
+    })().catch(console.error);
+
+    return result.toDataStreamResponse();
   } catch (error) {
     console.log("Error: ", error);
     
