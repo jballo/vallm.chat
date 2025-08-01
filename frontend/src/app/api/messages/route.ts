@@ -4,7 +4,7 @@ import { auth } from "@clerk/nextjs/server";
 import { fetchAction, fetchMutation } from "convex/nextjs";
 import { NextResponse } from "next/server";
 import { api } from "../../../../convex/_generated/api";
-import { CoreMessage, streamText } from "ai";
+import { ModelMessage, streamText } from "ai";
 import { createGroq } from "@ai-sdk/groq";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { getAuthToken } from "@/app/auth";
@@ -38,6 +38,16 @@ export async function POST(req: Request) {
 
     if (!encryptedApiKey) throw new Error("No encrypted api key provided!");
 
+    const decryptedApiKey = await fetchAction(
+      api.keysActions.simpleDecryptKey,
+      {
+        encryptedApiKey,
+      },
+      { token }
+    );
+
+    
+
     const latestMessage = history[history.length - 1];
     await fetchMutation(
       api.messages.saveUserMessage,
@@ -67,15 +77,8 @@ export async function POST(req: Request) {
       { token }
     );
 
-    const decryptedApiKey = await fetchAction(
-      api.keysActions.simpleDecryptKey,
-      {
-        encryptedApiKey,
-      },
-      { token }
-    );
 
-    let formattedHistory = history as CoreMessage[];
+    let formattedHistory = history as ModelMessage[];
 
     const fileSupportedLLMs = ["gemini-2.0-flash"];
 
@@ -99,7 +102,7 @@ export async function POST(req: Request) {
         }
       });
 
-      formattedHistory = noFilesFormat as CoreMessage[];
+      formattedHistory = noFilesFormat as ModelMessage[];
     }
 
     const groq = createGroq({
@@ -112,82 +115,62 @@ export async function POST(req: Request) {
       apiKey: decryptedApiKey.apiKey,
     });
     
-    const modelInvocation = fileSupportedLLMs.includes(model) ? google(model, {
-          useSearchGrounding: true,
-        }) : groq(model);
+    const modelInvocation = fileSupportedLLMs.includes(model) ? google(model) : groq(model);
 
+    const result = streamText({
+      model: modelInvocation,
+      system: "You are a professional assistant",
+      messages: formattedHistory,
+      abortSignal: req.signal,       // for now, the abortSignal implementation will not be focused on
+    });
+    
+    let streamErrored = false;
+    let errorMessage = "";
+    let content = "";
 
-    try {
-
-
-      const result = streamText({
-        model: modelInvocation,
-        system: "You are a professional assistant",
-        messages: formattedHistory,
-        abortSignal: req.signal,       // for now, the abortSignal implementation will not be focused on
-      });
-      
-      let streamErrored = false;
-      let errorMessage = "";
-      let content = "";
-  
-      for await (const chunk of result.fullStream) {
-        if (chunk.type === "text-delta") {
-          content += chunk.textDelta;
-          console.log("content: ", content);
-        } else if (chunk.type === "finish") {
-          await fetchMutation(
-            api.messages.updateMessageRoute,
-            {
-              messageId,
-              content,
-            },
-            { token }
-          );
-          console.log('Stream finished: ', chunk.finishReason, chunk.usage);
-        } else if (chunk.type === "error") {
-          streamErrored = true;
-          errorMessage = chunk.error;
-          break;
-        }
-      }
-
-      if (streamErrored) {
-        await fetchMutation(api.messages.errorMessage, {
-          messageId,
-          errorMessage,
-        }, { token });
-
-        await fetchMutation(api.messages.completeMessage, {
-          messageId,
-        }, { token });
-
-        return NextResponse.json(
-          { error: "AI stream failure", details: errorMessage },
-          { status: 500 }
+    for await (const chunk of result.fullStream) {
+      if (chunk.type === "text-delta") {
+        content += chunk.text;
+        console.log("content: ", content);
+      } else if (chunk.type === "finish") {
+        await fetchMutation(
+          api.messages.updateMessageRoute,
+          {
+            messageId,
+            content,
+          },
+          { token }
         );
+        console.log('Stream finished: ', chunk.finishReason, chunk.totalUsage);
+      } else if (chunk.type === "error") {
+        streamErrored = true;
+        errorMessage = (typeof chunk.error === "string" ? chunk.error : "Chunk error");
+        break;
       }
-
-  
-      return result.toDataStreamResponse();
-    } catch (error) {
-      console.error(error);
-
+    }
+    if (streamErrored) {
       await fetchMutation(api.messages.errorMessage, {
         messageId,
-        errorMessage: `${error instanceof Error ? error.message : "Vercel AI SDK Error"}`,
-        },
-        { token }
-      );
+        errorMessage,
+      }, { token });
 
-      throw new Error(`AI SDK Error`);
-    } finally {
       await fetchMutation(api.messages.completeMessage, {
-          messageId
-        },
-        { token }
+        messageId,
+      }, { token });
+
+      return NextResponse.json(
+        { error: "AI stream failure", details: errorMessage },
+        { status: 500 }
       );
     }
+
+    await fetchMutation(api.messages.completeMessage, {
+        messageId
+      },
+      { token }
+    );
+
+    return result.toUIMessageStreamResponse();
   } catch (error) {
     console.log("Error: ", error);
     

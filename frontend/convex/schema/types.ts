@@ -22,6 +22,16 @@ export const coreContent = v.union(
   v.array(v.union(coreTextPart, coreImagePart, coreFilePart))
 );
 
+// const modelMessage = v.object({
+//   role: v.union(
+//     v.literal("system"),
+//     v.literal("user"),
+//     v.literal("assistant"),
+//     v.literal("tool")
+//   ),
+//   content: coreContent,
+// });
+
 export const coreMessage = v.object({
   role: v.union(
     v.literal("system"),

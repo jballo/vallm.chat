@@ -33,6 +33,17 @@ const coreMessage = v.object({
   content: coreContent,
 });
 
+
+// const modelMessage = v.object({
+//   role: v.union(
+//     v.literal("system"),
+//     v.literal("user"),
+//     v.literal("assistant"),
+//     v.literal("tool")
+//   ),
+//   content: coreContent,
+// });
+
 export default defineSchema({
   users: defineTable({
     user_id: v.string(),

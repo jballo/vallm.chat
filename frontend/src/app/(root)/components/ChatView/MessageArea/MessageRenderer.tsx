@@ -2,7 +2,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { oneDark, nord } from "react-syntax-highlighter/dist/cjs/styles/prism";
+// import { oneDark, nord } from "react-syntax-highlighter/dist/cjs/styles/prism";
+import docco from 'react-syntax-highlighter/dist/esm/styles/hljs/docco';
 import type { Components } from "react-markdown";
 import { useTheme } from "next-themes";
 
@@ -23,7 +24,7 @@ export function MessageRenderer({ content }: MessageRendererProps) {
         const language = match ? match[1] : "";
         const isInline = !className;
 
-        const currentStyle = theme === "dark" ? oneDark : nord;
+        const currentStyle = theme === "dark" ? docco : docco;
 
         if (!isInline && language) {
           return (
@@ -186,7 +187,7 @@ export function MessageRendererDelayed({ content }: MessageRendererProps) {
                 {language}
               </div>
               <SyntaxHighlighter
-                style={oneDark}
+                style={docco}
                 language={language}
                 PreTag="div"
                 customStyle={{

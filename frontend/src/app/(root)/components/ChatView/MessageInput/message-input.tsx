@@ -12,7 +12,7 @@ import { api } from "../../../../../../convex/_generated/api";
 import { Id } from "../../../../../../convex/_generated/dataModel";
 import { toast } from "sonner";
 import { useUser } from "@clerk/nextjs";
-import { RequestOptions } from "ai";
+import { CompletionRequestOptions } from "ai";
 
 interface CoreTextPart {
   type: "text";
@@ -33,7 +33,12 @@ interface CoreFilePart {
 
 type CoreContent = string | Array<CoreTextPart | CoreImagePart | CoreFilePart>;
 
-interface CoreMessage {
+// interface CoreMessage {
+//   role: "system" | "user" | "assistant" | "tool";
+//   content: CoreContent;
+// }
+
+interface ModelMessage {
   role: "system" | "user" | "assistant" | "tool";
   content: CoreContent;
 }
@@ -80,7 +85,7 @@ interface MessageInputProps {
   | undefined;
   messageLoading: boolean;
   setMessageLoading: (val: boolean) => void;
-  complete: (prompt: string, options?: RequestOptions) => Promise<string | null | undefined>
+  complete: (prompt: string, options?: CompletionRequestOptions) => Promise<string | null | undefined>
 }
 
 export default function MessageInput({
@@ -182,13 +187,13 @@ export default function MessageInput({
 
       const content: CoreContent = [userMsg, ...tempFiles];
 
-      const msg: CoreMessage = {
+      const msg: ModelMessage = {
         role: "user",
         content: content,
       };
       history = [msg];
     } else {
-      const msg: CoreMessage = {
+      const msg: ModelMessage = {
         role: "user",
         content: message,
       };
@@ -223,7 +228,7 @@ export default function MessageInput({
     const ctrl = new AbortController();
     abortControl.current = ctrl;
 
-    let newHistory: CoreMessage[] = [];
+    let newHistory: ModelMessage[] = [];
 
     if (uploadedFiles.length > 0) {
       const userMsg: CoreTextPart = {
@@ -252,12 +257,12 @@ export default function MessageInput({
 
       const content: CoreContent = [userMsg, ...tempFiles];
 
-      const msg: CoreMessage = {
+      const msg: ModelMessage = {
         role: "user",
         content: content,
       };
 
-      const oldHistory: CoreMessage[] = [];
+      const oldHistory: ModelMessage[] = [];
 
       messages.map((m) => {
         if (m.message) {
@@ -271,12 +276,12 @@ export default function MessageInput({
       newHistory = [...oldHistory, msg];
 
     } else {
-      const msg: CoreMessage = {
+      const msg: ModelMessage = {
         role: "user",
         content: message,
       };
 
-      const oldHistory: CoreMessage[] = [];
+      const oldHistory: ModelMessage[] = [];
 
       messages.map((m) => {
         if (m.message) {
