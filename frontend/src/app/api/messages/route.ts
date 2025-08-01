@@ -1,4 +1,4 @@
-export const runtime = 'edge';
+// export const runtime = 'edge';
 
 import { auth } from "@clerk/nextjs/server";
 import { fetchAction, fetchMutation } from "convex/nextjs";
@@ -115,59 +115,27 @@ export async function POST(req: Request) {
     const modelInvocation = fileSupportedLLMs.includes(model) ? google(model, {
           useSearchGrounding: true,
         }) : groq(model);
-    
-    const result = streamText({
-      model: modelInvocation,
-      system: "You are a professional assistant",
-      messages: formattedHistory,
-      abortSignal: req.signal,
-    });
-    
-    (async () => {
+
+
+    try {
+
+
+      const result = streamText({
+        model: modelInvocation,
+        system: "You are a professional assistant",
+        messages: formattedHistory,
+        abortSignal: req.signal,       // for now, the abortSignal implementation will not be focused on
+      });
+      
+      let streamErrored = false;
+      let errorMessage = "";
       let content = "";
-      // let chunkCount = 0;
-      // let lastUpdate = Date.now();
-      // const UPDATE_INTERVAL = 800; // Update every 800ms
-      // const CHUNK_BATCH_SIZE = 40; // Or every 40 chunks
-
+  
       for await (const chunk of result.fullStream) {
-        // Process each chunk here - save to DB, log, etc.
-        console.log('Chunk type:', chunk.type);
-        
-        if (chunk.type === 'text-delta') {
-          // Handle text chunks
-          // console.log('Text delta:', chunk.textDelta);
+        if (chunk.type === "text-delta") {
           content += chunk.textDelta;
-          // chunkCount++;
-
-          // const now = Date.now();
-          // const shouldUpdate = chunkCount >= CHUNK_BATCH_SIZE || now - lastUpdate >= UPDATE_INTERVAL;
-
-          // if (shouldUpdate) {
-          //   await fetchMutation(
-          //     api.messages.updateMessageRoute,
-          //     {
-          //       messageId,
-          //       content,
-          //     },
-          //     { token }
-          //   );
-          //   chunkCount = 0;
-          //   lastUpdate = now;
-          // }
-
-          // await fetchMutation(
-          //   api.messages.updateMessageRoute,
-          //   {
-          //     messageId,
-          //     content,
-          //   },
-          //   { token }
-          // );
-
           console.log("content: ", content);
-        } else if (chunk.type === 'finish') {
-          // Handle completion
+        } else if (chunk.type === "finish") {
           await fetchMutation(
             api.messages.updateMessageRoute,
             {
@@ -176,17 +144,50 @@ export async function POST(req: Request) {
             },
             { token }
           );
-          console.log('Stream finished:', chunk.finishReason, chunk.usage);
-          await fetchMutation(api.messages.completeMessage, {
-            messageId: messageId
-          },
-          { token }
-        );
+          console.log('Stream finished: ', chunk.finishReason, chunk.usage);
+        } else if (chunk.type === "error") {
+          streamErrored = true;
+          errorMessage = chunk.error;
+          break;
         }
       }
-    })().catch(console.error);
 
-    return result.toDataStreamResponse();
+      if (streamErrored) {
+        await fetchMutation(api.messages.errorMessage, {
+          messageId,
+          errorMessage,
+        }, { token });
+
+        await fetchMutation(api.messages.completeMessage, {
+          messageId,
+        }, { token });
+
+        return NextResponse.json(
+          { error: "AI stream failure", details: errorMessage },
+          { status: 500 }
+        );
+      }
+
+  
+      return result.toDataStreamResponse();
+    } catch (error) {
+      console.error(error);
+
+      await fetchMutation(api.messages.errorMessage, {
+        messageId,
+        errorMessage: `${error instanceof Error ? error.message : "Vercel AI SDK Error"}`,
+        },
+        { token }
+      );
+
+      throw new Error(`AI SDK Error`);
+    } finally {
+      await fetchMutation(api.messages.completeMessage, {
+          messageId
+        },
+        { token }
+      );
+    }
   } catch (error) {
     console.log("Error: ", error);
     

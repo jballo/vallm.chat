@@ -38,6 +38,7 @@ export const sendMessage = mutation({
       chat_id: conversation_id,
       message: msg,
       isComplete: true,
+      error: false,
       model: model,
     });
 
@@ -46,6 +47,7 @@ export const sendMessage = mutation({
       chat_id: conversation_id,
       message: { role: "assistant", content: "" },
       isComplete: false,
+      error: false,
       model: model,
     });
     const fileSupportedLLMs = ["gemini-2.0-flash"];
@@ -118,6 +120,7 @@ export const saveUserMessage = mutation({
       chat_id,
       message: userMessage,
       isComplete: true,
+      error: false,
       model: model,
     });
   },
@@ -139,6 +142,7 @@ export const initiateMessage = mutation({
       chat_id: chat_id,
       message: { role: "assistant", content: "" },
       isComplete: false,
+      error: false,
       model: model,
     });
 
@@ -203,6 +207,24 @@ export const updateMessage = internalMutation({
     });
   },
 });
+
+export const errorMessage = mutation({
+  args: {
+    messageId: v.id("messages"),
+    errorMessage: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const identiy = await ctx.auth.getUserIdentity();
+    if (!identiy) throw new Error("Not authenticated");
+
+    const { messageId, errorMessage } = args;
+    
+    await ctx.db.patch(messageId, {
+      error: true,
+      errorMessage: errorMessage,
+    });
+  }
+})
 
 export const completeMessageRoute = mutation({
   args: { messageId: v.id("messages") },

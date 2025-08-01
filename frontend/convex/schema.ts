@@ -54,6 +54,8 @@ export default defineSchema({
     chat_id: v.id("chats"),
     message: coreMessage,
     isComplete: v.boolean(),
+    error: v.boolean(),
+    errorMessage: v.optional(v.string()),
     model: v.optional(v.string()),
   })
     .index("by_author", ["author_id"])

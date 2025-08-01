@@ -214,6 +214,7 @@ export const branchChat = mutation({
         chat_id: new_conversation_id,
         message: msg.message,
         isComplete: msg.isComplete,
+        error: msg.error,
         model: msg.model,
       });
     }
