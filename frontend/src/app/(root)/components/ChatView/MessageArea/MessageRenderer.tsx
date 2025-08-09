@@ -4,8 +4,11 @@ import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 // import { oneDark, nord } from "react-syntax-highlighter/dist/cjs/styles/prism";
 import docco from 'react-syntax-highlighter/dist/esm/styles/hljs/docco';
+// import oneDark from 'react-syntax-highlighter/dist/esm/styles/hljs/atom-one-dark';
+
 import type { Components } from "react-markdown";
 import { useTheme } from "next-themes";
+import { atomOneDark } from "react-syntax-highlighter/dist/esm/styles/hljs";
 
 interface MessageRendererProps {
   content: string;
@@ -24,7 +27,7 @@ export function MessageRenderer({ content }: MessageRendererProps) {
         const language = match ? match[1] : "";
         const isInline = !className;
 
-        const currentStyle = theme === "dark" ? docco : docco;
+        const currentStyle = theme === "dark" ? atomOneDark : docco;
 
         if (!isInline && language) {
           return (
@@ -187,7 +190,7 @@ export function MessageRendererDelayed({ content }: MessageRendererProps) {
                 {language}
               </div>
               <SyntaxHighlighter
-                style={docco}
+                style={atomOneDark}
                 language={language}
                 PreTag="div"
                 customStyle={{

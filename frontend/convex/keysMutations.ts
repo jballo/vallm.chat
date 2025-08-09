@@ -15,33 +15,57 @@ export const getEncryptionKeys = internalQuery({
   },
 });
 
-export const saveEncryptionKeys = internalMutation({
+export const ensureEncryptionKeys = internalMutation({
   args: {
-    user_id: v.string(),
     entropy: v.string(),
     salt: v.string(),
+    version: v.string(),
+    kdf_name: v.union(v.literal('scrypt'), v.literal('argon2')),
+    params: v.object({
+      N: v.number(),
+      r: v.number(),
+      p: v.number(),
+    }),
   },
   handler: async (ctx, args) => {
-    const { user_id, entropy, salt } = args;
+    const idendity = await ctx.auth.getUserIdentity();
+    if (!idendity) throw new Error("Not authenticated");
 
-    const recordId = await ctx.db.insert("userEncryptionKeys", {
-      user_id: user_id,
-      entropy: entropy,
-      salt: salt,
+    const { entropy, salt, version, kdf_name, params } = args;
+
+    const encryptionKey = await ctx.db
+      .query("userEncryptionKeys")
+      .withIndex("by_user", (q) => q.eq("user_id", idendity.subject))
+      .first();
+
+    if (encryptionKey) {
+      return encryptionKey;
+    }
+
+    const insertedKey = await ctx.db.insert("userEncryptionKeys", {
+      user_id: idendity.subject,
+      entropy,
+      salt,
+      version,
+      kdf_name,
+      params,
     });
-    const encryptionKeys = await ctx.db.get(recordId);
 
-    return encryptionKeys;
-  },
-});
+    const insertedEncryptionKey = await ctx.db.get(insertedKey);
 
-export const saveEncryptedApiKey = internalMutation({
+    return insertedEncryptionKey;
+
+  }
+})
+
+
+export const ensureEncryptedApiKeys = internalMutation({
   args: {
     user_id: v.string(),
     provider: v.string(),
     encryptedApiKey: v.string(),
   },
-  handler: async (ctx, args): Promise<{ action: string }> => {
+  handler: async (ctx, args) => {
     const { user_id, provider, encryptedApiKey } = args;
 
     const existing = await ctx.db
@@ -52,21 +76,18 @@ export const saveEncryptedApiKey = internalMutation({
       .first();
 
     if (existing) {
-      await ctx.db.patch(existing._id, {
-        encryptedApiKey: encryptedApiKey,
-      });
-      return { action: "updated" };
+      return existing;
     }
-    const newUserApiKeysId = await ctx.db.insert("userApiKeys", {
+
+    const encryptApiKeyId = await ctx.db.insert("userApiKeys", {
       user_id: user_id,
       provider: provider,
       encryptedApiKey: encryptedApiKey,
     });
 
-    const newUserApiKeys = await ctx.db.get(newUserApiKeysId);
+    const newUserApiKeys = await ctx.db.get(encryptApiKeyId);
 
-    if (!newUserApiKeys) throw new Error("Failed to create new user api key");
-    return { action: "created" };
+    return newUserApiKeys;
   },
 });
 

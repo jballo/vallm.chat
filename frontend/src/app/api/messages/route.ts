@@ -46,7 +46,11 @@ export async function POST(req: Request) {
       { token }
     );
 
-    
+
+    if (decryptedApiKey.success !== true) {
+      throw new Error(`${decryptedApiKey.error}`)
+    }
+
 
     const latestMessage = history[history.length - 1];
     await fetchMutation(
