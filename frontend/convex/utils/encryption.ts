@@ -39,7 +39,6 @@ export const encryptApiKey = (
   version: string,
   kdf_name: "scrypt" | "argon2",
   params: { N: number, r: number, p: number } | { m: number, t: number, p: number },
-  userId: string,
 ): { success: true, encryptedKey: string } | { success: false, error: string } => {
 
   try {
@@ -55,19 +54,13 @@ export const encryptApiKey = (
           params,
       );
     } else {
-      console.error(`[encryptApiKey]: ENCRYPTION_FAILURE`, {
-        code: "UNSUPPORTED_ENCRYPTION_VERSION",
-        userId,
-      })
-      return { success: false, error: `UNSUPPORTED_ENCRYPTION_VERSION` };
+      console.error("[encryptApiKey]: ENCRYPTION_FAILURE")
+      return { success: false, error: `ENCRYPTION_FAILURE` };
     }
 
     if (derivedKey === undefined) {
-      console.error("[encryptApiKey]: ENCRYPTION_FAILURE", {
-        code: "UNSUPPORTED_ENCRYPTION_METHOD",
-        userId,
-      });
-      return { success: false, error: `UNSUPPORTED_ENCRYPTION_METHOD` };
+      console.error("[encryptApiKey]: ENCRYPTION_FAILURE")
+      return { success: false, error: `ENCRYPTION_FAILURE` };
     }
   
     const iv = crypto.randomBytes(IV_LENGTH);
@@ -84,11 +77,8 @@ export const encryptApiKey = (
   } catch (error) {
     void error;
 
-    console.error("[encryptApiKey]: ENCRYPTION_ERROR", {
-      code: "ENCRYPTION_ERROR",
-      userId,
-    })
-    return { success: false, error: `ENCRYPTION_ERROR` };
+    console.error("[encryptApiKey]: ENCRYPTION_FAILURE")
+    return { success: false, error: `ENCRYPTION_FAILURE` };
   }
 };
 
@@ -99,7 +89,6 @@ export const decryptApiKey = (
   userEncryptionKeyCreatedAt: number,
   kdf_name: "scrypt" | "argon2",
   params: { N: number, r: number, p: number } | { m: number, t: number, p: number },
-  userId: string,
 ): { success: true, apiKey: string } | { success: false, error: string } => {
 
   const parts = encryptedApiKey.split("|", 4);
@@ -123,29 +112,19 @@ export const decryptApiKey = (
         params,
       )
     } else {
-      console.error("[decryptApiKey]: DECRYPTION_ERROR", {
-        code: "UNSUPPORTED_DECRYPTION_VERSION",
-        userId,
-      });
-      return { success: false, error: "UNSUPPORTED_DECRYPTION_VERSION"};
+      console.error("[decryptApiKey]: DECRYPTION_ERROR");
+      return { success: false, error: "DECRYPTION_ERROR"};
     }
 
     if (derivedKey === undefined) {
-      console.error("[decryptApiKey]: DECRYPTION_ERROR", {
-        code: "UNSUPPORTED_DECRYPTION_METHOD",
-        userId,
-      });
-      return { success: false, error: "UNSUPPORTED_DECRYPTION_METHOD" };
+      console.error("[decryptApiKey]: DECRYPTION_ERROR");
+      return { success: false, error: "DECRYPTION_ERROR"};
     }
 
   } catch (error) {
     void error;
-    console.error("[decryptApiKey]: DECRYPTION_ERROR", {
-      code: "FAILED_TO_GENERATE_DERIVED_KEY",
-      userId,
-    });
-    
-    return { success: false, error: "FAILED_TO_GENERATE_DERIVED_KEY"}
+    console.error("[decryptApiKey]: DECRYPTION_ERROR");
+    return { success: false, error: "DECRYPTION_ERROR"};
   }
 
   try {
@@ -156,10 +135,7 @@ export const decryptApiKey = (
     return { success: true, apiKey: decypted };
   } catch (error) {
     void error;
-    console.error("[decryptApiKey]: DECRYPTION_ERROR", {
-      code: "FAILED_TO_DECRYPTE_API_KEY",
-      userId,
-    });
-    return { success: false, error: "FAILED_TO_DECRYPTE_API_KEY"}
+    console.error("[decryptApiKey]: DECRYPTION_ERROR");
+    return { success: false, error: "DECRYPTION_ERROR"};
   }
 };
