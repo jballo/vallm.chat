@@ -18,10 +18,10 @@ export const saveApiKey = action({
   handler: async (
     ctx,
     args
-  ): Promise<{ success: true; message: string } | { success: false, error: "NOT_AUTHENTICATED" | "FAILED_TO_SAVE" | "NO_ENCRYPTION_KEY" | "ENCRYPTION_FAILURE" | "ENCRYPTED_API_KEY_NO_SAVE" | "INVALID_FORMAT"}> => {
+  ): Promise<{ success: true; message: string } | { success: false, error: "NOT_AUTHENTICATED" | "FAILED_TO_SAVE" | "NO_ENCRYPTION_KEY" | "FAILED_TO_ENCRYPT_API_KEY" | "ENCRYPTED_API_KEY_NO_SAVE" | "INVALID_FORMAT"}> => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) return { success: false, error: "NOT_AUTHENTICATED"}
-
+    
     try {
       const { provider, apiKey } = args;
 
@@ -40,11 +40,18 @@ export const saveApiKey = action({
       });
 
       if (!encryptionKey) {
+        console.error("[saveApiKey]: ENCRYPTION_FAILURE", {
+          code: "FAILED_TO_SAVE_ENCRYPTION_KEY",
+          userId: identity.subject,
+        });
         return { success: false, error: "NO_ENCRYPTION_KEY" };
       }
 
       if (typeof encryptionKey._creationTime !== "number") {
-        console.error(`[saveApiKey]: _createTime for encryptionKey is not a number`);
+        console.error("[saveApiKey]: ENCRYPTION_FAILURE", {
+          code: "ENCRYPTION_KEY_INVALID_FORMAT",
+          userId: identity.subject,
+        });
         return { success: false, error: "INVALID_FORMAT" };
       }
 
@@ -56,11 +63,15 @@ export const saveApiKey = action({
         encryptionKey.version,
         encryptionKey.kdf_name,
         encryptionKey.params,
+        identity.subject,
       );
 
       if (encryptedApiKey.success === false) {
-        console.error(`[saveApiKey]: ${encryptedApiKey.error}`);
-        return { success: false, error: "ENCRYPTION_FAILURE" };
+        console.error("[saveApiKey]: ENCRYPTION_FAILURE", {
+          code: "FAILED_TO_ENCRYPT_API_KEY",
+          userId: identity.subject,
+        });
+        return { success: false, error: "FAILED_TO_ENCRYPT_API_KEY" };
       }
   
       const result = await ctx.runMutation(
@@ -73,7 +84,10 @@ export const saveApiKey = action({
       );
 
       if (result === null) {
-        console.error(`[saveApiKey]: FAILED TO SAVE ENCRYPTED API KEY`);
+        console.error("[saveApiKey]: ENCRYPTION_FAILURE", {
+          code: "FAILED_TO_SAVE_ENCRYPTED_API_KEY",
+          userId: identity.subject,
+        });
         return { success: false, error: "ENCRYPTED_API_KEY_NO_SAVE" };
       }
   
@@ -132,7 +146,8 @@ export const getApiKey = action({
       encryptionKeys.salt,
       encryptionKeys._creationTime,
       encryptionKeys.kdf_name,
-      encryptionKeys.params
+      encryptionKeys.params,
+      identity.subject,
     );
 
     return {
@@ -146,7 +161,7 @@ export const simpleDecryptKey = action({
   args: {
     encryptedApiKey: v.string(),
   },
-  handler: async (ctx, args): Promise<{ success: true; apiKey?: string; } | { success: false; error: "NO_IDENTITY" | "NO_KEYS" | "DECRYPTION_ERROR" | "INVALID_FORMAT"; }> => {
+  handler: async (ctx, args): Promise<{ success: true; apiKey?: string; } | { success: false; error: "NO_IDENTITY" | "NO_ENCRYPTION_KEY" | "DECRYPTION_ERROR" | "KEY_DECRYPTION_FAILURE"; }> => {
     
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) return { success: false, error: "NO_IDENTITY" }
@@ -162,7 +177,13 @@ export const simpleDecryptKey = action({
         }
       );
   
-      if (!encryptionKeys) return { success: false, error: "NO_KEYS" };
+      if (!encryptionKeys) {
+        console.error("[simpleDecryptKey]: DECRYPTION_ERROR", {
+          code: "NO_ENCRYPTION_KEY",
+          userId: identity.subject,
+        });
+        return { success: false, error: "KEY_DECRYPTION_FAILURE" };
+      }
   
       const decryptedApiKey = decryptApiKey(
         encryptedApiKey,
@@ -171,18 +192,26 @@ export const simpleDecryptKey = action({
         encryptionKeys._creationTime,
         encryptionKeys.kdf_name,
         encryptionKeys.params,
+        identity.subject,
       );
 
-      if (decryptedApiKey.success === false) throw new Error("DECRYPTION_ERROR");
+      if (decryptedApiKey.success === false) {
+        console.error("[simpleDecryptKey]: DECRYPTION_ERROR", {
+          code: "FAILED_TO_DECRYPT_API_KEY",
+          userId: identity.subject,
+        });
+        return { success: false, error: "KEY_DECRYPTION_FAILURE" };
+
+      }
   
       return { success: true, apiKey: decryptedApiKey.apiKey };
 
     } catch (error) {
-      console.error("Error: ", error);
-      console.error("[simpleDecryptKey] Decryption error", {
-        error,
+      void error;
+
+      console.error("[simpleDecryptKey] DECRYPTION_ERROR", {
+        code: "DECRYPTION_ERROR",
         userId: identity.subject,
-        encryptedApiKey,
       });
 
       return { success: false, error: "DECRYPTION_ERROR" };

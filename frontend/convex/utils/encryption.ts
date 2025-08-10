@@ -38,7 +38,8 @@ export const encryptApiKey = (
   salt: string,
   version: string,
   kdf_name: "scrypt" | "argon2",
-  params: { N: number, r: number, p: number } | { m: number, t: number, p: number }
+  params: { N: number, r: number, p: number } | { m: number, t: number, p: number },
+  userId: string,
 ): { success: true, encryptedKey: string } | { success: false, error: string } => {
 
   try {
@@ -54,13 +55,19 @@ export const encryptApiKey = (
           params,
       );
     } else {
-      console.error(`Unsupported encryption version: ${version}`);
-      return { success: false, error: `Unsupported encryption version: ${version}` };
+      console.error(`[encryptApiKey]: ENCRYPTION_FAILURE`, {
+        code: "UNSUPPORTED_ENCRYPTION_VERSION",
+        userId,
+      })
+      return { success: false, error: `UNSUPPORTED_ENCRYPTION_VERSION` };
     }
 
     if (derivedKey === undefined) {
-      console.error(`Unsupported encryption method`);
-      return { success: false, error: `Unsupported encryption method: ${kdf_name}` };
+      console.error("[encryptApiKey]: ENCRYPTION_FAILURE", {
+        code: "UNSUPPORTED_ENCRYPTION_METHOD",
+        userId,
+      });
+      return { success: false, error: `UNSUPPORTED_ENCRYPTION_METHOD` };
     }
   
     const iv = crypto.randomBytes(IV_LENGTH);
@@ -75,8 +82,13 @@ export const encryptApiKey = (
     return { success: true, encryptedKey: `${version}|${iv.toString("hex")}|${authTag.toString("hex")}|${encrypted}` };
 
   } catch (error) {
-    console.error(`[encryptApiKey]: ${error}`);
-    return { success: false, error: `${error}` }
+    void error;
+
+    console.error("[encryptApiKey]: ENCRYPTION_ERROR", {
+      code: "ENCRYPTION_ERROR",
+      userId,
+    })
+    return { success: false, error: `ENCRYPTION_ERROR` };
   }
 };
 
@@ -87,6 +99,7 @@ export const decryptApiKey = (
   userEncryptionKeyCreatedAt: number,
   kdf_name: "scrypt" | "argon2",
   params: { N: number, r: number, p: number } | { m: number, t: number, p: number },
+  userId: string,
 ): { success: true, apiKey: string } | { success: false, error: string } => {
 
   const parts = encryptedApiKey.split("|", 4);
@@ -110,17 +123,29 @@ export const decryptApiKey = (
         params,
       )
     } else {
-      return { success: false, error: "UNSUPPORTED_VERSION"};
+      console.error("[decryptApiKey]: DECRYPTION_ERROR", {
+        code: "UNSUPPORTED_DECRYPTION_VERSION",
+        userId,
+      });
+      return { success: false, error: "UNSUPPORTED_DECRYPTION_VERSION"};
     }
 
     if (derivedKey === undefined) {
-      console.error(`Unsupported encryption method`);
-      return { success: false, error: `Unsupported encryption method: ${kdf_name}` };
+      console.error("[decryptApiKey]: DECRYPTION_ERROR", {
+        code: "UNSUPPORTED_DECRYPTION_METHOD",
+        userId,
+      });
+      return { success: false, error: "UNSUPPORTED_DECRYPTION_METHOD" };
     }
 
   } catch (error) {
-    console.error("Error: ", error);
-    return { success: false, error: "KDF_DERIVATION_ERROR"}
+    void error;
+    console.error("[decryptApiKey]: DECRYPTION_ERROR", {
+      code: "FAILED_TO_GENERATE_DERIVED_KEY",
+      userId,
+    });
+    
+    return { success: false, error: "FAILED_TO_GENERATE_DERIVED_KEY"}
   }
 
   try {
@@ -130,7 +155,11 @@ export const decryptApiKey = (
     decypted += decipher.final('utf-8');
     return { success: true, apiKey: decypted };
   } catch (error) {
-    console.error("Error: ", error);
-    return { success: false, error: "DECRYPTION_FAILED"}
+    void error;
+    console.error("[decryptApiKey]: DECRYPTION_ERROR", {
+      code: "FAILED_TO_DECRYPTE_API_KEY",
+      userId,
+    });
+    return { success: false, error: "FAILED_TO_DECRYPTE_API_KEY"}
   }
 };
