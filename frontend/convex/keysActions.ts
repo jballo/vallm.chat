@@ -50,7 +50,7 @@ export const saveApiKey = action({
         return { success: false, error: "Unable to save API key. Please try again later." };
       }
 
-      const encryptedApiKey = encryptApiKey(
+      const encryptedApiKey = await encryptApiKey(
         apiKey,
         encryptionKey.entropy,
         encryptionKey._creationTime,
@@ -130,7 +130,7 @@ export const getApiKey = action({
       };
     }
 
-    const decryptedApiKey = decryptApiKey(
+    const decryptedApiKey = await decryptApiKey(
       encryptedApiKey.encryptedApiKey,
       encryptionKeys.entropy,
       encryptionKeys.salt,
@@ -171,7 +171,7 @@ export const simpleDecryptKey = action({
         return { success: false, error: "Unable to decrypt api key at this time. Please try again later." };
       }
   
-      const decryptedApiKey = decryptApiKey(
+      const decryptedApiKey = await decryptApiKey(
         encryptedApiKey,
         encryptionKeys.entropy,
         encryptionKeys.salt,

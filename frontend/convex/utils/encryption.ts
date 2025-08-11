@@ -2,10 +2,21 @@
 import crypto from "crypto";
 
 const ALGORITHM = "aes-256-gcm";
-const IV_LENGTH = 12; // For GCM, this is always 16 bytes
-// const SALT_LENGTH = 32;
-// const TAG_LENGTH = 16;
+const IV_LENGTH = 12; // For GCM, use 12 bytes for reasonable efficiency
 const KEY_LENGTH = 32;
+
+// memory budget for a single KDF call (conservative)
+const MAX_KDF_MEMORY_BYTES = 128 * 1024 * 1024; // 128 MB (safe default for a 512MB process)
+
+// scrypt parameter bounds (practical / conservative)
+const MIN_SCRYPT_N = 1 << 14;    // 16384 (common safe minimum; ~16 MB when r=8)
+const MAX_SCRYPT_N = 1 << 17;    // 131072 (2^17) — upper bound given r=8, p=1 and 128MB budget
+
+const MIN_SCRYPT_R = 8;          // common default; larger r increases memory linearly
+const MAX_SCRYPT_R = 32;
+
+const MIN_SCRYPT_P = 1;
+const MAX_SCRYPT_P = 2;          // keep p small; parallelization multiplies memory use
 
 
 export const generateEntropy = (): string => {
@@ -16,22 +27,63 @@ export const generateSalt = (): string => {
   return crypto.randomBytes(32).toString("hex");
 };
 
-export const deriveUserKey = (
+export const deriveUserKey = async (
   entropy: string,
   createdAt: number,
   salt: string,
   kdf_name: "scrypt" | "argon2",
   params: { N: number, r: number, p: number } | { m: number, t: number, p: number }
-): Buffer | undefined => {
+): Promise<Buffer | undefined> => {
   if (kdf_name === "scrypt") {
+    
+    const formattedParams = params as { N: number, r: number, p: number };
+    
+    if (typeof formattedParams.N !== "number" || formattedParams.N < MIN_SCRYPT_N || formattedParams.N > MAX_SCRYPT_N) {
+      return undefined;
+    }
+    
+    if( typeof formattedParams.r !== "number" || formattedParams.r < MIN_SCRYPT_R || formattedParams.r > MAX_SCRYPT_R) {
+      return undefined;
+    }
+    
+    if (typeof formattedParams.p !== "number" || formattedParams.p < MIN_SCRYPT_P || formattedParams.p > MAX_SCRYPT_P) {
+      return undefined;
+    }
+    
+    const approxMem = 128 * formattedParams.N * formattedParams.r * formattedParams.p;
+    
+    if (approxMem > MAX_KDF_MEMORY_BYTES) {
+      return undefined;
+    }
+
     const keyMaterial = `${entropy}|${createdAt}`;
-    return crypto.scryptSync(keyMaterial, salt, KEY_LENGTH, params as { N: number, r: number, p: number });
+    
+    const scryptOptions = {
+      N: formattedParams.N,
+      r: formattedParams.r,
+      p: formattedParams.p,
+      // ensure we have a safe maxem
+      maxmem: Math.min(approxMem * 2, MAX_KDF_MEMORY_BYTES),
+    }
+
+    const derived =  await new Promise<Buffer | undefined>((resolve) => {
+      crypto.scrypt(keyMaterial, salt, KEY_LENGTH, scryptOptions, (err: Error | null, derivedKey: Buffer) => {
+        if (err) {
+          resolve(undefined);
+          return;
+        }
+        resolve(derivedKey);
+        return;
+      });
+    });
+
+    return derived;
   } else {
     return undefined;
   }
 };
 
-export const encryptApiKey = (
+export const encryptApiKey = async (
   plainApiKey: string, 
   entropy: string,
   createdAt: number,
@@ -39,14 +91,14 @@ export const encryptApiKey = (
   version: string,
   kdf_name: "scrypt" | "argon2",
   params: { N: number, r: number, p: number } | { m: number, t: number, p: number },
-): { success: true, encryptedKey: string } | { success: false, error: string } => {
+): Promise<{ success: true, encryptedKey: string } | { success: false, error: string }> => {
 
   try {
 
     let derivedKey: Buffer | undefined;
     
     if (version === "v1") { 
-      derivedKey = deriveUserKey(
+      derivedKey = await deriveUserKey(
           entropy,
           createdAt,
           salt,
@@ -82,14 +134,14 @@ export const encryptApiKey = (
   }
 };
 
-export const decryptApiKey = (
+export const decryptApiKey = async (
   encryptedApiKey: string, 
   userEncryptionKeyEntropy: string,
   userEncryptionKeySalt: string,
   userEncryptionKeyCreatedAt: number,
   kdf_name: "scrypt" | "argon2",
   params: { N: number, r: number, p: number } | { m: number, t: number, p: number },
-): { success: true, apiKey: string } | { success: false, error: string } => {
+): Promise<{ success: true, apiKey: string } | { success: false, error: string }> => {
 
   const parts = encryptedApiKey.split("|", 4);
   if (parts.length !== 4) {
@@ -104,7 +156,7 @@ export const decryptApiKey = (
 
   try {
     if (version === "v1") {
-      derivedKey = deriveUserKey(
+      derivedKey = await deriveUserKey(
         userEncryptionKeyEntropy,
         userEncryptionKeyCreatedAt,
         userEncryptionKeySalt,
