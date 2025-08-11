@@ -33,6 +33,18 @@ const coreMessage = v.object({
   content: coreContent,
 });
 
+const scryptSyncParams = v.object({
+  N: v.number(),
+  r: v.number(),
+  p: v.number(),
+});
+
+const argon2Params = v.object({
+  m: v.number(),
+  t: v.number(),
+  p: v.number(),
+});
+
 
 // const modelMessage = v.object({
 //   role: v.union(
@@ -88,11 +100,15 @@ export default defineSchema({
     user_id: v.string(),
     entropy: v.string(),
     salt: v.string(),
+    version: v.string(),
+    kdf_name: v.union(v.literal('scrypt'), v.literal('argon2')),
+    params: v.union(scryptSyncParams, argon2Params),
   }).index("by_user", ["user_id"]),
   userApiKeys: defineTable({
     user_id: v.string(),
     provider: v.string(),
     encryptedApiKey: v.string(),
+    derivedAt: v.number(),
   })
     .index("by_user", ["user_id"])
     .index("by_user_provider", ["user_id", "provider"]),

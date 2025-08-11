@@ -8,59 +8,59 @@ import { GitBranch, Paperclip, RefreshCcw } from "lucide-react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 
-interface CoreTextPart {
-  type: "text";
-  text: string;
-}
+// interface CoreTextPart {
+//   type: "text";
+//   text: string;
+// }
 
-interface CoreImagePart {
-  type: "image";
-  image: string; // either a URL or a base64 string
-  mimeType?: string;
-}
+// interface CoreImagePart {
+//   type: "image";
+//   image: string; // either a URL or a base64 string
+//   mimeType?: string;
+// }
 
-interface CoreFilePart {
-  type: "file";
-  data: string; // either a URL or base64 string
-  mimeType: string;
-}
+// interface CoreFilePart {
+//   type: "file";
+//   data: string; // either a URL or base64 string
+//   mimeType: string;
+// }
 
-type CoreContent = string | Array<CoreTextPart | CoreImagePart | CoreFilePart>;
+// type CoreContent = string | Array<CoreTextPart | CoreImagePart | CoreFilePart>;
 
-interface CoreMessage {
-  role: "system" | "user" | "assistant" | "tool";
-  content: CoreContent;
-}
+// interface CoreMessage {
+//   role: "system" | "user" | "assistant" | "tool";
+//   content: CoreContent;
+// }
 
-interface QueryMessage {
-  _id: Id<"messages">;
-  _creationTime: number;
-  model?: string | undefined;
-  message: {
-    role: "user" | "system" | "assistant" | "tool";
-    content:
-    | string
-    | (
-      | {
-        text: string;
-        type: "text";
-      }
-      | {
-        mimeType?: string | undefined;
-        image: string;
-        type: "image";
-      }
-      | {
-        type: "file";
-        mimeType: string;
-        data: string;
-      }
-    )[];
-  };
-  author_id: string;
-  chat_id: Id<"chats">;
-  isComplete: boolean;
-}
+// interface QueryMessage {
+//   _id: Id<"messages">;
+//   _creationTime: number;
+//   model?: string | undefined;
+//   message: {
+//     role: "user" | "system" | "assistant" | "tool";
+//     content:
+//     | string
+//     | (
+//       | {
+//         text: string;
+//         type: "text";
+//       }
+//       | {
+//         mimeType?: string | undefined;
+//         image: string;
+//         type: "image";
+//       }
+//       | {
+//         type: "file";
+//         mimeType: string;
+//         data: string;
+//       }
+//     )[];
+//   };
+//   author_id: string;
+//   chat_id: Id<"chats">;
+//   isComplete: boolean;
+// }
 
 interface ChatMessagesProps {
   activeChat: { id: Id<"chats">; title: string } | null;
@@ -90,14 +90,14 @@ interface ChatMessagesProps {
 export function ChatMessages({
   activeChat,
   activeTab,
-  useage,
-  allAvailableApiKeys,
+  // useage,
+  // allAvailableApiKeys,
   messageLoading,
   streamedMessage,
 }: ChatMessagesProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const branchChat = useMutation(api.chat.branchChat);
-  const regenerateResponse = useMutation(api.messages.regnerateResponse);
+  // const regenerateResponse = useMutation(api.messages.regnerateResponse);
 
 
   const queryVariables = useMemo(() => {
@@ -131,70 +131,70 @@ export function ChatMessages({
     });
   };
 
-  const regenerateMessage = async (msg: QueryMessage) => {
-    if (useage === null || useage === undefined) return;
-    if (!allAvailableApiKeys) return;
-    const selectedProvider =
-      msg.model === "gemini-2.0-flash" ? "Gemini" : "Groq";
+  // const regenerateMessage = async (msg: QueryMessage) => {
+  //   if (useage === null || useage === undefined) return;
+  //   if (!allAvailableApiKeys) return;
+  //   const selectedProvider =
+  //     msg.model === "gemini-2.0-flash" ? "Gemini" : "Groq";
 
-    const encryptedApiKey = allAvailableApiKeys.find(
-      (key) => key.provider == selectedProvider
-    );
+  //   const encryptedApiKey = allAvailableApiKeys.find(
+  //     (key) => key.provider == selectedProvider
+  //   );
 
-    if (encryptedApiKey === undefined) return;
+  //   if (encryptedApiKey === undefined) return;
 
-    console.log("msg: ", msg);
-    console.log("msg role: ", msg.message.role);
+  //   console.log("msg: ", msg);
+  //   console.log("msg role: ", msg.message.role);
 
-    const targetIndex = messages.findIndex(
-      (tempMsg) => tempMsg._id === msg._id
-    );
-    if (targetIndex === -1) return;
+  //   const targetIndex = messages.findIndex(
+  //     (tempMsg) => tempMsg._id === msg._id
+  //   );
+  //   if (targetIndex === -1) return;
 
-    console.log("index of message: ", targetIndex);
+  //   console.log("index of message: ", targetIndex);
 
-    const messagesToDelete =
-      msg.message.role === "user"
-        ? messages.slice(targetIndex, messages.length)
-        : messages.slice(targetIndex - 1, messages.length);
+  //   const messagesToDelete =
+  //     msg.message.role === "user"
+  //       ? messages.slice(targetIndex, messages.length)
+  //       : messages.slice(targetIndex - 1, messages.length);
 
-    const messageIdsToDelete: Id<"messages">[] =
-      msg.message.role === "user"
-        ? messages.slice(targetIndex, messages.length).map((m) => m._id)
-        : messages.slice(targetIndex - 1, messages.length).map((m) => m._id);
-    // const messageIdsToDelete: Id<"messages">[] = messages.slice(targetIndex, messages.length).map(m => m._id);
+  //   const messageIdsToDelete: Id<"messages">[] =
+  //     msg.message.role === "user"
+  //       ? messages.slice(targetIndex, messages.length).map((m) => m._id)
+  //       : messages.slice(targetIndex - 1, messages.length).map((m) => m._id);
+  //   // const messageIdsToDelete: Id<"messages">[] = messages.slice(targetIndex, messages.length).map(m => m._id);
 
-    const history: CoreMessage[] =
-      msg.message.role === "user"
-        ? messages.slice(0, targetIndex + 1).map((m) => ({
-          role: m.message.role,
-          content: m.message.content,
-        }))
-        : messages.slice(0, targetIndex).map((m) => ({
-          role: m.message.role,
-          content: m.message.content,
-        }));
+  //   const history: CoreMessage[] =
+  //     msg.message.role === "user"
+  //       ? messages.slice(0, targetIndex + 1).map((m) => ({
+  //         role: m.message.role,
+  //         content: m.message.content,
+  //       }))
+  //       : messages.slice(0, targetIndex).map((m) => ({
+  //         role: m.message.role,
+  //         content: m.message.content,
+  //       }));
 
-    const conversation_id = msg.chat_id;
+  //   const conversation_id = msg.chat_id;
 
-    const model = msg.model;
+  //   const model = msg.model;
 
-    console.log("messagesToDelete: ", messagesToDelete);
-    console.log("history: ", history);
-    console.log("messageIdsToDelete: ", messageIdsToDelete);
-    console.log("conversation_id: ", conversation_id);
-    console.log("model: ", model);
+  //   console.log("messagesToDelete: ", messagesToDelete);
+  //   console.log("history: ", history);
+  //   console.log("messageIdsToDelete: ", messageIdsToDelete);
+  //   console.log("conversation_id: ", conversation_id);
+  //   console.log("model: ", model);
 
-    await regenerateResponse({
-      conversationId: conversation_id,
-      history: history,
-      model: model || "",
-      messageIdsToDelete: messageIdsToDelete,
-      useageId: useage._id,
-      credits: useage.messagesRemaining,
-      encryptedApiKey: encryptedApiKey.encryptedApiKey,
-    });
-  };
+  //   await regenerateResponse({
+  //     conversationId: conversation_id,
+  //     history: history,
+  //     model: model || "",
+  //     messageIdsToDelete: messageIdsToDelete,
+  //     useageId: useage._id,
+  //     credits: useage.messagesRemaining,
+  //     encryptedApiKey: encryptedApiKey.encryptedApiKey,
+  //   });
+  // };
 
   const renderedMessagesOptimal = useMemo(
     () =>
@@ -269,7 +269,7 @@ export function ChatMessages({
                   variant="ghost"
                   size="icon"
                   className="h-9 w-9 text-gray-400 hover:text-white hover:bg-[#2a2a2a] rounded-xl transition-colors duration-200"
-                  onClick={() => regenerateMessage(msg)}
+                // onClick={() => regenerateMessage(msg)}
                 >
                   <RefreshCcw className="h-3 w-3" />
                 </Button>
