@@ -64,9 +64,10 @@ export const ensureEncryptedApiKeys = internalMutation({
     user_id: v.string(),
     provider: v.string(),
     encryptedApiKey: v.string(),
+    derivedAt: v.number(),
   },
   handler: async (ctx, args) => {
-    const { user_id, provider, encryptedApiKey } = args;
+    const { user_id, provider, encryptedApiKey, derivedAt } = args;
 
     const existing = await ctx.db
       .query("userApiKeys")
@@ -76,13 +77,18 @@ export const ensureEncryptedApiKeys = internalMutation({
       .first();
 
     if (existing) {
-      return existing;
+      await ctx.db.patch(existing._id, {
+        encryptedApiKey,
+        derivedAt,
+      })
+      return await ctx.db.get(existing._id);
     }
 
     const encryptApiKeyId = await ctx.db.insert("userApiKeys", {
       user_id: user_id,
       provider: provider,
       encryptedApiKey: encryptedApiKey,
+      derivedAt,
     });
 
     const newUserApiKeys = await ctx.db.get(encryptApiKeyId);

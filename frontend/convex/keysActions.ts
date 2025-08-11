@@ -30,6 +30,7 @@ export const saveApiKey = action({
       const version = "v1";
       const kdf_name = "scrypt";
       const params = { N: 16384, r: 8, p: 1, };
+      const derivedAt = Date.now();
 
       const encryptionKey = await ctx.runMutation(internal.keysMutations.ensureEncryptionKeys, {
         entropy,
@@ -70,6 +71,7 @@ export const saveApiKey = action({
           user_id: identity.subject,
           encryptedApiKey: encryptedApiKey.encryptedKey,
           provider: provider,
+          derivedAt,
         }
       );
 

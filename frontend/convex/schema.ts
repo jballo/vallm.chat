@@ -108,6 +108,7 @@ export default defineSchema({
     user_id: v.string(),
     provider: v.string(),
     encryptedApiKey: v.string(),
+    derivedAt: v.number(),
   })
     .index("by_user", ["user_id"])
     .index("by_user_provider", ["user_id", "provider"]),
