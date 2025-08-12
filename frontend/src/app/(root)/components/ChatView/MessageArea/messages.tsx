@@ -8,59 +8,6 @@ import { GitBranch, Paperclip, RefreshCcw } from "lucide-react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 
-// interface CoreTextPart {
-//   type: "text";
-//   text: string;
-// }
-
-// interface CoreImagePart {
-//   type: "image";
-//   image: string; // either a URL or a base64 string
-//   mimeType?: string;
-// }
-
-// interface CoreFilePart {
-//   type: "file";
-//   data: string; // either a URL or base64 string
-//   mimeType: string;
-// }
-
-// type CoreContent = string | Array<CoreTextPart | CoreImagePart | CoreFilePart>;
-
-// interface CoreMessage {
-//   role: "system" | "user" | "assistant" | "tool";
-//   content: CoreContent;
-// }
-
-// interface QueryMessage {
-//   _id: Id<"messages">;
-//   _creationTime: number;
-//   model?: string | undefined;
-//   message: {
-//     role: "user" | "system" | "assistant" | "tool";
-//     content:
-//     | string
-//     | (
-//       | {
-//         text: string;
-//         type: "text";
-//       }
-//       | {
-//         mimeType?: string | undefined;
-//         image: string;
-//         type: "image";
-//       }
-//       | {
-//         type: "file";
-//         mimeType: string;
-//         data: string;
-//       }
-//     )[];
-//   };
-//   author_id: string;
-//   chat_id: Id<"chats">;
-//   isComplete: boolean;
-// }
 
 interface ChatMessagesProps {
   activeChat: { id: Id<"chats">; title: string } | null;
@@ -282,43 +229,27 @@ export function ChatMessages({
     [messages, messageLoading, activeTab]
   );
 
-  // const streamedOptimal = useMemo(() => (<div className={cn(`flex flex-col group justify-start`, {
-  // })}>
-  //   <div className={cn(`max-w-[80%] rounded-2xl rounded-br-md px-4 py-3 bg-green-200`)}>
-  //     {streamedMessage.length < 1 ? (<div className="flex space-x-5 justify-center p-4">
-  //       <span className="sr-only">Loading...</span>
-  //       <div className="h-2 w-2 bg-primary rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-  //       <div className="h-2 w-2 bg-primary rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-  //       <div className="h-2 w-2 bg-primary rounded-full animate-bounce"></div>
-  //     </div>) : (
-  //       <MessageRenderer content={streamedMessage} />
-  //     )}
-  //   </div>
-  // </div>), [streamedMessage]);
-
-  const streamedContent = (
-    <div className={cn("flex flex-col group justify-start")}>
-      <div className={cn("max-w-[80%] rounded-2xl rounded-br-md px-4 py-3 bg-muted")}>
-        {streamedMessage.length < 1 ? (
-          <div className="flex space-x-5 justify-center p-4">
-            <span className="sr-only">Loading...</span>
-            <div className="h-2 w-2 bg-primary rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-            <div className="h-2 w-2 bg-primary rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-            <div className="h-2 w-2 bg-primary rounded-full animate-bounce"></div>
-          </div>
-        ) : (
-          <MessageRenderer content={streamedMessage} />
-        )}
-      </div>
+  const streamedOptimal = useMemo(() => (<div className={cn(`flex flex-col group justify-start`, {
+  })}>
+    <div className={cn(`max-w-[80%] rounded-2xl rounded-br-md px-4 py-3 bg-muted`)}>
+      {streamedMessage.length < 1 ? (<div className="flex space-x-5 justify-center p-4">
+        <span className="sr-only">Loading...</span>
+        <div className="h-2 w-2 bg-primary rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+        <div className="h-2 w-2 bg-primary rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+        <div className="h-2 w-2 bg-primary rounded-full animate-bounce"></div>
+      </div>) : (
+        <MessageRenderer content={streamedMessage} />
+      )}
     </div>
-  );
+  </div>), [streamedMessage]);
+
 
   return (
     <div className="flex-1 overflow-y-auto p-6">
       <div className="max-w-4xl mx-auto">
         {renderedMessagesOptimal}
-        {/* {streamedMessage && streamedMessage.length > 0 && (streamedOptimal)} */}
-        {(streamedMessage.length > 0 && messages.at(-1)?.isComplete === false) && (streamedContent)}
+        {/* {(streamedMessage.length > 0 && messages.at(-1)?.isComplete === false) && (streamedOptimal)} */}
+        {(messageLoading) && (streamedOptimal)}
         {/* <div ref={messagesEndRef} /> */}
       </div>
     </div>

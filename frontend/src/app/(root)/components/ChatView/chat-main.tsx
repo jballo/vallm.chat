@@ -66,11 +66,21 @@ export function ChatView({
     experimental_throttle: 50,
     onFinish: () => {
       setMessageLoading(false);
+      setTemp("");
     },
     onError: () => {
       setMessageLoading(false);
-    }
+      setTemp("");
+    },
   });
+
+  const [temp, setTemp] = useState<string>("");
+
+  useEffect(() => {
+    setTemp(completion);
+  }, [completion]);
+
+
 
   // useEffect(() => {
   //   console.log("completion: ", completion);
@@ -98,7 +108,7 @@ export function ChatView({
         getAllApiKeys={getAllApiKeys}
         activeTab={activeTab}
         messageLoading={messageLoading}
-        streamedMessage={completion}
+        streamedMessage={temp}
       />
 
       {/* Message input */}
