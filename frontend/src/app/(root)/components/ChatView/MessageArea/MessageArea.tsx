@@ -8,74 +8,49 @@ import { Id } from "../../../../../../convex/_generated/dataModel";
 
 interface MessageAreaProps {
   activeChat: { id: Id<"chats">; title: string } | null;
-  messages: {
-    _id: Id<"messages">;
-    _creationTime: number;
-    model?: string | undefined;
-    message: {
-      role: "system" | "user" | "assistant" | "tool";
-      content:
-        | string
-        | (
-            | {
-                type: "text";
-                text: string;
-              }
-            | {
-                mimeType?: string | undefined;
-                type: "image";
-                image: string;
-              }
-            | {
-                type: "file";
-                mimeType: string;
-                data: string;
-              }
-          )[];
-    };
-    author_id: string;
-    chat_id: Id<"chats">;
-    isComplete: boolean;
-  }[];
   useage:
-    | {
-        _id: Id<"useage">;
-        _creationTime: number;
-        user_id: string;
-        messagesRemaining: number;
-      }
-    | null
-    | undefined;
+  | {
+    _id: Id<"useage">;
+    _creationTime: number;
+    user_id: string;
+    messagesRemaining: number;
+  }
+  | null
+  | undefined;
 
   getAllApiKeys:
-    | {
-        _id: Id<"userApiKeys">;
-        _creationTime: number;
-        user_id: string;
-        provider: string;
-        encryptedApiKey: string;
-      }[]
-    | undefined;
+  | {
+    _id: Id<"userApiKeys">;
+    _creationTime: number;
+    user_id: string;
+    provider: string;
+    encryptedApiKey: string;
+  }[]
+  | undefined;
   activeTab: "myChats" | "shared";
+  messageLoading: boolean;
+  streamedMessage: string;
 }
 
 export default function MessageArea({
   activeChat,
-  messages,
   useage,
   getAllApiKeys,
   activeTab,
+  messageLoading,
+  streamedMessage,
 }: MessageAreaProps) {
   return (
     <div className="flex-1 overflow-y-auto bg-card">
       <Authenticated>
         {activeChat ? (
           <ChatMessages
-            messages={messages}
             activeChat={activeChat}
             activeTab={activeTab}
             useage={useage}
             allAvailableApiKeys={getAllApiKeys}
+            messageLoading={messageLoading}
+            streamedMessage={streamedMessage}
           />
         ) : (
           <div className="flex-1 overflow-y-auto p-6">

@@ -20,7 +20,6 @@ import type * as keysMutations from "../keysMutations.js";
 import type * as messages from "../messages.js";
 import type * as schema_types from "../schema/types.js";
 import type * as sharing from "../sharing.js";
-import type * as streaming from "../streaming.js";
 import type * as users from "../users.js";
 import type * as utils_encryption from "../utils/encryption.js";
 
@@ -40,7 +39,6 @@ declare const fullApi: ApiFromModules<{
   messages: typeof messages;
   "schema/types": typeof schema_types;
   sharing: typeof sharing;
-  streaming: typeof streaming;
   users: typeof users;
   "utils/encryption": typeof utils_encryption;
 }>;

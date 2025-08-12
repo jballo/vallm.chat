@@ -5,7 +5,6 @@ import { action } from "./_generated/server";
 import { internal } from "./_generated/api";
 import {
   decryptApiKey,
-  deriveUserKey,
   encryptApiKey,
   generateEntropy,
   generateSalt,
@@ -19,58 +18,81 @@ export const saveApiKey = action({
   handler: async (
     ctx,
     args
-  ): Promise<{ success: boolean; message: string }> => {
+  ): Promise<{ success: true; message: string } | { success: false, error: string }> => {
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
+    if (!identity) return { success: false, error: "Not authenticated"}
+    
+    try {
+      const { provider, apiKey } = args;
 
-    const { provider, apiKey } = args;
-
-    let encryptionKeys = await ctx.runQuery(
-      internal.keysMutations.getEncryptionKeys,
-      {
-        user_id: identity.subject,
-      }
-    );
-
-    if (!encryptionKeys) {
       const entropy = generateEntropy();
       const salt = generateSalt();
+      const version = "v1";
+      const kdf_name = "scrypt";
+      const params = { N: 16384, r: 8, p: 1, };
+      const derivedAt = Date.now();
 
-      encryptionKeys = await ctx.runMutation(
-        internal.keysMutations.saveEncryptionKeys,
+      const encryptionKey = await ctx.runMutation(internal.keysMutations.ensureEncryptionKeys, {
+        entropy,
+        salt,
+        version,
+        kdf_name,
+        params,
+      });
+
+      if (!encryptionKey) {
+        console.error("[saveApiKey]: ENCRYPTION_FAILURE");
+        return { success: false, error: "Unable to save API key. Please try again later." };
+      }
+
+      if (typeof encryptionKey._creationTime !== "number") {
+        console.error("[saveApiKey]: ENCRYPTION_FAILURE");
+        return { success: false, error: "Unable to save API key. Please try again later." };
+      }
+
+      const encryptedApiKey = await encryptApiKey(
+        apiKey,
+        encryptionKey.entropy,
+        encryptionKey._creationTime,
+        encryptionKey.salt,
+        encryptionKey.version,
+        encryptionKey.kdf_name,
+        encryptionKey.params,
+      );
+
+      if (encryptedApiKey.success === false) {
+        console.error("[saveApiKey]: ENCRYPTION_FAILURE");
+        return { success: false, error: "Unable to save API key. Please try again later." };
+      }
+  
+      const result = await ctx.runMutation(
+        internal.keysMutations.ensureEncryptedApiKeys,
         {
           user_id: identity.subject,
-          entropy: entropy,
-          salt: salt,
+          encryptedApiKey: encryptedApiKey.encryptedKey,
+          provider: provider,
+          derivedAt,
         }
       );
-    }
 
-    if (!encryptionKeys) {
-      throw new Error("Failed to create encryption keys");
-    }
-
-    const derivedKey = deriveUserKey(
-      encryptionKeys.entropy,
-      encryptionKeys._creationTime,
-      encryptionKeys.salt
-    );
-
-    const encryptedApiKey = encryptApiKey(apiKey, derivedKey);
-
-    const result = await ctx.runMutation(
-      internal.keysMutations.saveEncryptedApiKey,
-      {
-        user_id: identity.subject,
-        provider: provider,
-        encryptedApiKey: encryptedApiKey,
+      if (result === null) {
+        console.error("[saveApiKey]: ENCRYPTED_API_KEY_NO_SAVE");
+        return { success: false, error: "Unable to save API key. Please try again later." };
       }
-    );
+  
+      return {
+        success: true,
+        message: `${provider} API key, successfully saved`,
+      };
+    } catch (error) {
+      void error;
+      console.error("[saveApiKey]: ENCRYPTED_API_KEY_NO_SAVE");
+      return {
+        success: false,
+        error: "Unable to save API key. Please try again later.",
+      }
+    }
 
-    return {
-      success: true,
-      message: `${provider} API key ${result.action}`,
-    };
   },
 });
 
@@ -108,15 +130,13 @@ export const getApiKey = action({
       };
     }
 
-    const derivedKey = deriveUserKey(
-      encryptionKeys.entropy,
-      encryptionKeys._creationTime,
-      encryptionKeys.salt
-    );
-
-    const decryptedApiKey = decryptApiKey(
+    const decryptedApiKey = await decryptApiKey(
       encryptedApiKey.encryptedApiKey,
-      derivedKey
+      encryptionKeys.entropy,
+      encryptionKeys.salt,
+      encryptionKeys._creationTime,
+      encryptionKeys.kdf_name,
+      encryptionKeys.params,
     );
 
     return {
@@ -130,33 +150,48 @@ export const simpleDecryptKey = action({
   args: {
     encryptedApiKey: v.string(),
   },
-  handler: async (ctx, args): Promise<{ success: boolean; apiKey: string }> => {
+  handler: async (ctx, args): Promise<{ success: true; apiKey?: string; } | { success: false; error: string; }> => {
+    
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return { success: false, error: "Not authenticated" }
+
+
     const { encryptedApiKey } = args;
 
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
-
-    const encryptionKeys = await ctx.runQuery(
-      internal.keysMutations.getEncryptionKeys,
-      {
-        user_id: identity.subject,
+    try {
+      const encryptionKeys = await ctx.runQuery(
+        internal.keysMutations.getEncryptionKeys,
+        {
+          user_id: identity.subject,
+        }
+      );
+  
+      if (!encryptionKeys) {
+        console.error("[simpleDecryptKey]: DECRYPTION_ERROR");
+        return { success: false, error: "Unable to decrypt api key at this time. Please try again later." };
       }
-    );
+  
+      const decryptedApiKey = await decryptApiKey(
+        encryptedApiKey,
+        encryptionKeys.entropy,
+        encryptionKeys.salt,
+        encryptionKeys._creationTime,
+        encryptionKeys.kdf_name,
+        encryptionKeys.params,
+      );
 
-    if (!encryptionKeys) throw new Error("No encryption keys found");
+      if (decryptedApiKey.success === false) {
+        console.error("[simpleDecryptKey]: DECRYPTION_ERROR");
+        return { success: false, error: "Unable to decrypt api key at this time. Please try again later." };
+      }
+  
+      return { success: true, apiKey: decryptedApiKey.apiKey };
 
-    const derivedKey = deriveUserKey(
-      encryptionKeys.entropy,
-      encryptionKeys._creationTime,
-      encryptionKeys.salt
-    );
-
-    const decryptedApiKey = decryptApiKey(encryptedApiKey, derivedKey);
-
-    return {
-      success: true,
-      apiKey: decryptedApiKey,
-    };
+    } catch (error) {
+      void error;
+      console.error("[simpleDecryptKey]: DECRYPTION_ERROR");
+      return { success: false, error: "Unable to decrypt api key at this time. Please try again later." };
+    }
   },
 });
 

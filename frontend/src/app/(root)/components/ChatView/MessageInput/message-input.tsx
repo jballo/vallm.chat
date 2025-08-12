@@ -2,15 +2,17 @@
 
 import { Textarea } from "@/atoms/textarea";
 import { UploadButton } from "@/utils/uploadthing";
-import { Ellipsis, LoaderCircle, Paperclip, Send } from "lucide-react";
+import { Ellipsis, LoaderCircle, OctagonXIcon, Paperclip, Send } from "lucide-react";
 import Image from "next/image";
 import { ModelSelector } from "./model-selector";
 import { Button } from "@/atoms/button";
-import { useAction, useConvexAuth, useMutation } from "convex/react";
-import { useState } from "react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
+import { useMemo, useRef, useState } from "react";
 import { api } from "../../../../../../convex/_generated/api";
 import { Id } from "../../../../../../convex/_generated/dataModel";
 import { toast } from "sonner";
+import { useUser } from "@clerk/nextjs";
+import { CompletionRequestOptions } from "ai";
 
 interface CoreTextPart {
   type: "text";
@@ -31,7 +33,12 @@ interface CoreFilePart {
 
 type CoreContent = string | Array<CoreTextPart | CoreImagePart | CoreFilePart>;
 
-interface CoreMessage {
+// interface CoreMessage {
+//   role: "system" | "user" | "assistant" | "tool";
+//   content: CoreContent;
+// }
+
+interface ModelMessage {
   role: "system" | "user" | "assistant" | "tool";
   content: CoreContent;
 }
@@ -59,75 +66,71 @@ interface MessageInputProps {
   }) => void;
   activeChat: { id: Id<"chats">; title: string } | null;
   useage:
-    | {
-        _id: Id<"useage">;
-        _creationTime: number;
-        user_id: string;
-        messagesRemaining: number;
-      }
-    | null
-    | undefined;
-
-  messages: {
-    _id: Id<"messages">;
+  | {
+    _id: Id<"useage">;
     _creationTime: number;
-    model?: string | undefined;
-    message: {
-      role: "system" | "user" | "assistant" | "tool";
-      content:
-        | string
-        | (
-            | {
-                text: string;
-                type: "text";
-              }
-            | {
-                mimeType?: string | undefined;
-                image: string;
-                type: "image";
-              }
-            | {
-                type: "file";
-                mimeType: string;
-                data: string;
-              }
-          )[];
-    };
-    author_id: string;
-    chat_id: Id<"chats">;
-    isComplete: boolean;
-  }[];
-
+    user_id: string;
+    messagesRemaining: number;
+  }
+  | null
+  | undefined;
   getAllApiKeys:
-    | {
-        _id: Id<"userApiKeys">;
-        _creationTime: number;
-        user_id: string;
-        provider: string;
-        encryptedApiKey: string;
-      }[]
-    | undefined;
+  | {
+    _id: Id<"userApiKeys">;
+    _creationTime: number;
+    user_id: string;
+    provider: string;
+    encryptedApiKey: string;
+  }[]
+  | undefined;
+  messageLoading: boolean;
+  setMessageLoading: (val: boolean) => void;
+  complete: (prompt: string, options?: CompletionRequestOptions) => Promise<string | null | undefined>
 }
 
 export default function MessageInput({
   selectedModel,
   setSelectedModel,
   activeChat,
-  messages,
   useage,
   getAllApiKeys,
+  messageLoading,
+  setMessageLoading,
+  complete,
 }: MessageInputProps) {
+  const { user, isLoaded, isSignedIn } = useUser();
   const { isLoading, isAuthenticated } = useConvexAuth();
+
+  const queryVariables = useMemo(() => {
+    return activeChat ? { conversationId: activeChat.id } : "skip";
+  }, [activeChat]);
+
+  const messages = useQuery(api.messages.getMessages, queryVariables) || [];
 
   const [message, setMessage] = useState("");
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
 
-  const sendMessage = useMutation(api.messages.sendMessage);
-  const createChat = useAction(api.chat.createChat);
+  const abortControl = useRef<AbortController | null>(null);
   const uploadImages = useMutation(api.files.uploadImages);
+  const saveUserMessage = useMutation(api.messages.saveUserMessage);
+  const initateAssistantMessage = useMutation(api.messages.initiateMessage);
+  const updateUseage = useMutation(api.users.updateUseage);
 
-  const handleSendMessage = () => {
-    if (!getAllApiKeys) return;
+  // const { completion, complete } = useCompletion({
+  //   api: '/api/completion',
+  // });
+  // const { messages: chatMessages } = useChat({
+  //   api: '/api/messages'
+  // });
+
+  const handleStopStreaming = () => {
+    console.log("Streaming stopped...");
+    abortControl.current?.abort();
+    setMessageLoading(false);
+  }
+
+  const handleSendMessageRoute = async () => {
+    if (!user || !isSignedIn || !isLoaded || !getAllApiKeys) return;
     const availableProviders: string[] = getAllApiKeys.map(
       (key) => key.provider
     );
@@ -149,156 +152,215 @@ export default function MessageInput({
     if (useage === null || useage === undefined || useage.messagesRemaining < 1)
       return;
 
-    // const encryptedApiKey: string | undefined = getAllApiKeys.find(
-    //   (key) => key.provider === selectedModel.provider
-    // );
-
     const encryptedApiKey = getAllApiKeys.find(
       (key) => key.provider === selectedModel.provider
     );
 
     if (!encryptedApiKey) return;
 
-    if (!activeChat) {
-      if (uploadedFiles.length > 0) {
-        const userMsg: CoreTextPart = {
-          type: "text",
-          text: message,
-        };
-        const tempFiles: (CoreImagePart | CoreFilePart)[] = [];
+    setMessageLoading(true);
 
-        uploadedFiles.map((file) => {
-          if (file.mimeType === "application/pdf") {
-            const tempFile: CoreFilePart = {
-              type: "file",
-              data: file.data,
-              mimeType: file.mimeType,
-            };
-            tempFiles.push(tempFile);
-          } else {
-            const tempImg: CoreImagePart = {
-              type: "image",
-              image: file.data,
-              mimeType: file.mimeType,
-            };
-            tempFiles.push(tempImg);
-          }
-        });
+    // const latestMessage: ModelMessage = {
+    //   role: "user",
+    //   content: message,
+    // }
 
-        const content: CoreContent = [userMsg, ...tempFiles];
+    // await saveUserMessage({
+    //   chat_id: activeChat.id,
+    //   userMessage: latestMessage,
+    //   model: selectedModel.id,
+    // });
 
-        const msg: CoreMessage = {
-          role: "user",
-          content: content,
-        };
-        createChat({
-          history: [msg],
-          model: selectedModel.id,
-          useageId: useage._id,
-          credits: useage.messagesRemaining,
-          encryptedApiKey: encryptedApiKey.encryptedApiKey,
-        });
-      } else {
-        const msg: CoreMessage = {
-          role: "user",
-          content: message,
-        };
+    // const messageId = await initateAssistantMessage({
+    //   chat_id: activeChat.id,
+    //   model: selectedModel.id,
+    // });
 
-        createChat({
-          history: [msg],
-          model: selectedModel.id,
-          useageId: useage._id,
-          credits: useage.messagesRemaining,
-          encryptedApiKey: encryptedApiKey.encryptedApiKey,
-        });
-      }
+    let chat_id: Id<"chats"> | null;
+
+    let history;
+
+    if (uploadedFiles.length > 0) {
+      const userMsg: CoreTextPart = {
+        type: "text",
+        text: message,
+      };
+      const tempFiles: (CoreImagePart | CoreFilePart)[] = [];
+
+      uploadedFiles.map((file) => {
+        if (file.mimeType === "application/pdf") {
+          const tempFile: CoreFilePart = {
+            type: "file",
+            data: file.data,
+            mimeType: file.mimeType,
+          };
+          tempFiles.push(tempFile);
+        } else {
+          const tempImg: CoreImagePart = {
+            type: "image",
+            image: file.data,
+            mimeType: file.mimeType,
+          };
+          tempFiles.push(tempImg);
+        }
+      });
+
+      const content: CoreContent = [userMsg, ...tempFiles];
+
+      const msg: ModelMessage = {
+        role: "user",
+        content: content,
+      };
+      history = [msg];
     } else {
-      if (uploadedFiles.length > 0) {
-        const userMsg: CoreTextPart = {
-          type: "text",
-          text: message,
-        };
-        const tempFiles: (CoreImagePart | CoreFilePart)[] = [];
+      const msg: ModelMessage = {
+        role: "user",
+        content: message,
+      };
+      history = [msg];
+    }
 
-        uploadedFiles.map((file) => {
-          if (file.mimeType === "application/pdf") {
-            const tempFile: CoreFilePart = {
-              type: "file",
-              data: file.data,
-              mimeType: file.mimeType,
-            };
-            tempFiles.push(tempFile);
-          } else {
-            const tempImg: CoreImagePart = {
-              type: "image",
-              image: file.data,
-              mimeType: file.mimeType,
-            };
-            tempFiles.push(tempImg);
-          }
-        });
+    if (!activeChat) {
+      const response = await fetch("/api/chats", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          user_id: user.id,
+          history,
+        }),
+      });
 
-        const content: CoreContent = [userMsg, ...tempFiles];
+      if (!response.ok) {
+        console.log("Failed to create chat");
+        return;
+      }
 
-        const msg: CoreMessage = {
-          role: "user",
-          content: content,
-        };
+      const result = await response.json();
+      chat_id = result.content as Id<"chats">;
+      console.log("Chat created...");
+    } else {
+      chat_id = activeChat.id;
+      console.log("Chat selected...");
+    }
 
-        const oldHistory: CoreMessage[] = [];
+    const latestMessage: ModelMessage = {
+      role: "user",
+      content: message,
+    }
 
-        messages.map((m) => {
-          if (m.message) {
-            oldHistory.push({
-              role: m.message.role,
-              content: m.message.content,
-            });
-          }
-        });
+    await saveUserMessage({
+      chat_id: chat_id,
+      userMessage: latestMessage,
+      model: selectedModel.id,
+    });
 
-        const newHistory: CoreMessage[] = [...oldHistory, msg];
+    const messageId = await initateAssistantMessage({
+      chat_id: chat_id,
+      model: selectedModel.id,
+    });
 
-        sendMessage({
-          conversationId: activeChat.id,
-          history: newHistory,
+    await updateUseage({
+      useageId: useage._id,
+      credits: useage.messagesRemaining - 1,
+    });
+
+    const ctrl = new AbortController();
+    abortControl.current = ctrl;
+
+    let newHistory: ModelMessage[] = [];
+
+    if (uploadedFiles.length > 0) {
+      const userMsg: CoreTextPart = {
+        type: "text",
+        text: message,
+      };
+      const tempFiles: (CoreImagePart | CoreFilePart)[] = [];
+
+      uploadedFiles.map((file) => {
+        if (file.mimeType === "application/pdf") {
+          const tempFile: CoreFilePart = {
+            type: "file",
+            data: file.data,
+            mimeType: file.mimeType,
+          };
+          tempFiles.push(tempFile);
+        } else {
+          const tempImg: CoreImagePart = {
+            type: "image",
+            image: file.data,
+            mimeType: file.mimeType,
+          };
+          tempFiles.push(tempImg);
+        }
+      });
+
+      const content: CoreContent = [userMsg, ...tempFiles];
+
+      const msg: ModelMessage = {
+        role: "user",
+        content: content,
+      };
+
+      const oldHistory: ModelMessage[] = [];
+
+      messages.map((m) => {
+        if (m.message) {
+          oldHistory.push({
+            role: m.message.role,
+            content: m.message.content,
+          });
+        }
+      });
+
+      newHistory = [...oldHistory, msg];
+
+    } else {
+      const msg: ModelMessage = {
+        role: "user",
+        content: message,
+      };
+
+      const oldHistory: ModelMessage[] = [];
+
+      messages.map((m) => {
+        if (m.message) {
+          oldHistory.push({
+            role: m.message.role,
+            content: m.message.content,
+          });
+        }
+      });
+
+      newHistory = [...oldHistory, msg];
+
+    }
+
+    try {
+
+      await complete(
+        JSON.stringify({
           model: selectedModel.id,
-          useageId: useage._id,
-          credits: useage.messagesRemaining,
           encryptedApiKey: encryptedApiKey.encryptedApiKey,
-        });
+          history: newHistory,
+          messageId: messageId,
+        })
+      )
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        // This is a user-initiated abort - should be handled as success
+        console.log("Request aborted by user");
       } else {
-        const msg: CoreMessage = {
-          role: "user",
-          content: message,
-        };
-
-        const oldHistory: CoreMessage[] = [];
-
-        messages.map((m) => {
-          if (m.message) {
-            oldHistory.push({
-              role: m.message.role,
-              content: m.message.content,
-            });
-          }
-        });
-
-        const newHistory: CoreMessage[] = [...oldHistory, msg];
-
-        // createChat({
-        //   history: [msg],
-        //   model: selectedModel.id,
-        // });
-
-        sendMessage({
-          conversationId: activeChat.id,
-          history: newHistory,
-          model: selectedModel.id,
-          useageId: useage._id,
-          credits: useage.messagesRemaining,
-          encryptedApiKey: encryptedApiKey.encryptedApiKey,
+        // This is a system error (network issue, etc.)
+        console.error("System error:", error);
+        toast.error("Connection Error", {
+          description: "Failed to connect to the server. Please check your connection and try again.",
         });
       }
+    } finally {
+      abortControl.current = null;
+      console.log("Streaming stopped...");
     }
 
     setMessage("");
@@ -308,12 +370,16 @@ export default function MessageInput({
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      handleSendMessage();
+      // handleSendMessage();
+      handleSendMessageRoute();
     }
   };
 
   return (
     <div className="p-6 bg-card">
+      {/* <div>
+        {completion}
+      </div> */}
       <div className="flex flex-col  gap-3 max-w-4xl mx-auto">
         <div className="flex flex-row w-full gap-4">
           {uploadedFiles.map((file, index) => {
@@ -351,69 +417,80 @@ export default function MessageInput({
           <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center gap-2">
             {(selectedModel.capabilities.includes("image") ||
               selectedModel.capabilities.includes("pdf")) && (
-              <UploadButton
-                endpoint="imageUploader"
-                className="ut-button:h-9 ut-button:w-9 ut-button:bg-transparent ut-allowed-content:hidden"
-                content={{
-                  button({ ready }) {
-                    if (ready)
-                      return <Paperclip className="w-4 h-4 text-[#99a1af]" />;
+                <UploadButton
+                  endpoint="imageUploader"
+                  className="ut-button:h-9 ut-button:w-9 ut-button:bg-transparent ut-allowed-content:hidden"
+                  content={{
+                    button({ ready }) {
+                      if (ready)
+                        return <Paperclip className="w-4 h-4 text-[#99a1af]" />;
 
-                    return <Ellipsis className="w-4 h-4 text-[#99a1af]" />;
-                  },
-                  allowedContent({ ready, isUploading }) {
-                    if (!ready)
                       return <Ellipsis className="w-4 h-4 text-[#99a1af]" />;
-                    if (isUploading)
-                      return (
-                        <LoaderCircle className="w-4 h-4 text-[#99a1af]" />
-                      );
-                    return "";
-                  },
-                }}
-                onClientUploadComplete={async (res) => {
-                  // Do something with the response
-                  console.log("Files: ", res);
-                  const filesFormatted: {
-                    name: string;
-                    url: string;
-                    size: number;
-                    mimeType: string;
-                  }[] = [];
+                    },
+                    allowedContent({ ready, isUploading }) {
+                      if (!ready)
+                        return <Ellipsis className="w-4 h-4 text-[#99a1af]" />;
+                      if (isUploading)
+                        return (
+                          <LoaderCircle className="w-4 h-4 text-[#99a1af]" />
+                        );
+                      return "";
+                    },
+                  }}
+                  onClientUploadComplete={async (res) => {
+                    // Do something with the response
+                    console.log("Files: ", res);
+                    const filesFormatted: {
+                      name: string;
+                      url: string;
+                      size: number;
+                      mimeType: string;
+                    }[] = [];
 
-                  res.map((file) => {
-                    filesFormatted.push({
-                      name: file.name,
-                      url: file.ufsUrl,
-                      size: file.size,
-                      mimeType: file.type,
+                    res.map((file) => {
+                      filesFormatted.push({
+                        name: file.name,
+                        url: file.ufsUrl,
+                        size: file.size,
+                        mimeType: file.type,
+                      });
                     });
-                  });
 
-                  const tempFiles = await uploadImages({
-                    files: filesFormatted,
-                  });
-                  setUploadedFiles((prevFiles) => [...prevFiles, ...tempFiles]);
-                  // alert("Upload Completed");
-                }}
-                onUploadError={(error: Error) => {
-                  // Do something with the error.
-                  alert(`ERROR! ${error.message}`);
-                }}
-              />
-            )}
+                    const tempFiles = await uploadImages({
+                      files: filesFormatted,
+                    });
+                    setUploadedFiles((prevFiles) => [...prevFiles, ...tempFiles]);
+                    // alert("Upload Completed");
+                  }}
+                  onUploadError={(error: Error) => {
+                    // Do something with the error.
+                    alert(`ERROR! ${error.message}`);
+                  }}
+                />
+              )}
             <ModelSelector
               selectedModel={selectedModel}
               setSelectedModel={setSelectedModel}
             />
-            <Button
-              size="icon"
-              className="h-9 w-9 rounded-xl transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-              onClick={handleSendMessage}
-              disabled={!message.trim()}
-            >
-              <Send className="h-4 w-4" />
-            </Button>
+            {messageLoading ? (
+              <Button
+                size="icon"
+                className="h-9 w-9 rounded-xl transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={handleStopStreaming}
+              >
+                <OctagonXIcon className="h-4 w-4" />
+              </Button>
+            ) : (
+              <Button
+                size="icon"
+                className="h-9 w-9 rounded-xl transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={handleSendMessageRoute}
+                disabled={!message.trim()}
+              >
+                <Send className="h-4 w-4" />
+              </Button>
+
+            )}
           </div>
         </div>
       </div>

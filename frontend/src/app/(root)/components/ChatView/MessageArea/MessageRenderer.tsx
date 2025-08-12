@@ -2,9 +2,13 @@
 import React, { useEffect, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { oneDark, nord } from "react-syntax-highlighter/dist/cjs/styles/prism";
+// import { oneDark, nord } from "react-syntax-highlighter/dist/cjs/styles/prism";
+import docco from 'react-syntax-highlighter/dist/esm/styles/hljs/docco';
+// import oneDark from 'react-syntax-highlighter/dist/esm/styles/hljs/atom-one-dark';
+
 import type { Components } from "react-markdown";
 import { useTheme } from "next-themes";
+import { atomOneDark } from "react-syntax-highlighter/dist/esm/styles/hljs";
 
 interface MessageRendererProps {
   content: string;
@@ -13,9 +17,7 @@ interface MessageRendererProps {
 export function MessageRenderer({ content }: MessageRendererProps) {
   const { theme } = useTheme();
 
-  const prismStyle = useMemo(() => {
-    return theme === "dark" ? oneDark : nord;
-  }, [theme]);
+
 
   const components: Components = useMemo(
     () => ({
@@ -25,6 +27,8 @@ export function MessageRenderer({ content }: MessageRendererProps) {
         const language = match ? match[1] : "";
         const isInline = !className;
 
+        const currentStyle = theme === "dark" ? atomOneDark : docco;
+
         if (!isInline && language) {
           return (
             <div className="my-3 rounded-lg overflow-hidden">
@@ -32,7 +36,7 @@ export function MessageRenderer({ content }: MessageRendererProps) {
                 {language}
               </div>
               <SyntaxHighlighter
-                style={prismStyle}
+                style={currentStyle}
                 language={language}
                 PreTag="div"
                 customStyle={{
@@ -121,7 +125,7 @@ export function MessageRenderer({ content }: MessageRendererProps) {
         );
       },
     }),
-    [prismStyle]
+    [theme]
   );
 
   const renderedContent = useMemo(
@@ -186,7 +190,7 @@ export function MessageRendererDelayed({ content }: MessageRendererProps) {
                 {language}
               </div>
               <SyntaxHighlighter
-                style={oneDark}
+                style={atomOneDark}
                 language={language}
                 PreTag="div"
                 customStyle={{

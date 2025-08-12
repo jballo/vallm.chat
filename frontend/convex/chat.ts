@@ -1,92 +1,111 @@
 import { v } from "convex/values";
-import { action, mutation, query } from "./_generated/server";
-import { CoreMessage, generateText } from "ai";
-import { api } from "./_generated/api";
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
-import { coreMessage } from "./schema/types";
+import { mutation, query } from "./_generated/server";
 
-export const createChat = action({
+// export const createChat = action({
+//   args: {
+//     history: v.array(coreMessage),
+//     model: v.string(),
+//     useageId: v.id("useage"),
+//     credits: v.number(),
+//     encryptedApiKey: v.string(),
+//   },
+//   async handler(ctx, args) {
+//     const identity = await ctx.auth.getUserIdentity();
+//     if (identity === null) {
+//       throw new Error("Not authenticated");
+//     }
+
+//     const user_id = identity.subject;
+//     const history = args.history;
+//     const model = args.model;
+//     const useageId = args.useageId;
+//     const credits = args.credits;
+//     const encryptedApiKey = args.encryptedApiKey;
+
+//     const google = createGoogleGenerativeAI({
+//       baseURL: "https://generativelanguage.googleapis.com/v1beta",
+//       apiKey: process.env.GEMINI_KEY,
+//     });
+
+//     const { text } = await generateText({
+//       model: google("gemini-2.0-flash-lite"),
+//       system:
+//         "Generate a four word title that describes the message the user will provider. NO LONGER THAN FOUR WORDS",
+//       messages: history as CoreMessage[],
+//     });
+
+//     console.log("Title: ", text);
+
+//     await ctx.runMutation(api.chat.saveChat, {
+//       userId: user_id,
+//       title: text,
+//       history: history,
+//       model: model,
+//       useageId: useageId,
+//       credits: credits,
+//       encryptedApiKey: encryptedApiKey,
+//     });
+//   },
+// });
+
+// export const saveChat = mutation({
+//   args: {
+//     userId: v.string(),
+//     title: v.string(),
+//     history: v.array(coreMessage),
+//     model: v.string(),
+//     useageId: v.id("useage"),
+//     credits: v.number(),
+//     encryptedApiKey: v.string(),
+//   },
+//   handler: async (ctx, args) => {
+//     const user_id = args.userId;
+//     const generatedTitle = args.title;
+//     const history = args.history;
+//     const model = args.model;
+//     const useageId = args.useageId;
+//     const credits = args.credits;
+//     const encryptedApiKey = args.encryptedApiKey;
+
+//     const chat_id = await ctx.db.insert("chats", {
+//       user_id: user_id,
+//       title: generatedTitle,
+//     });
+//     console.log("chat_id: ", chat_id);
+
+//     // create the message for the new chat
+
+//     // await ctx.runMutation(api.messages.sendMessage, {
+//     //   conversationId: chat_id,
+//     //   history: history,
+//     //   model: model,
+//     //   useageId: useageId,
+//     //   credits: credits,
+//     //   encryptedApiKey: encryptedApiKey,
+//     // });
+//   },
+// });
+
+export const hybridSaveChat = mutation({
   args: {
-    history: v.array(coreMessage),
-    model: v.string(),
-    useageId: v.id("useage"),
-    credits: v.number(),
-    encryptedApiKey: v.string(),
-  },
-  async handler(ctx, args) {
-    const identity = await ctx.auth.getUserIdentity();
-    if (identity === null) {
-      throw new Error("Not authenticated");
-    }
-
-    const user_id = identity.subject;
-    const history = args.history;
-    const model = args.model;
-    const useageId = args.useageId;
-    const credits = args.credits;
-    const encryptedApiKey = args.encryptedApiKey;
-
-    const google = createGoogleGenerativeAI({
-      baseURL: "https://generativelanguage.googleapis.com/v1beta",
-      apiKey: process.env.GEMINI_KEY,
-    });
-
-    const { text } = await generateText({
-      model: google("gemini-2.0-flash-lite"),
-      system:
-        "Generate a four word title that describes the message the user will provider. NO LONGER THAN FOUR WORDS",
-      messages: history as CoreMessage[],
-    });
-
-    console.log("Title: ", text);
-
-    await ctx.runMutation(api.chat.saveChat, {
-      userId: user_id,
-      title: text,
-      history: history,
-      model: model,
-      useageId: useageId,
-      credits: credits,
-      encryptedApiKey: encryptedApiKey,
-    });
-  },
-});
-
-export const saveChat = mutation({
-  args: {
-    userId: v.string(),
     title: v.string(),
-    history: v.array(coreMessage),
-    model: v.string(),
-    useageId: v.id("useage"),
-    credits: v.number(),
-    encryptedApiKey: v.string(),
   },
   handler: async (ctx, args) => {
-    const user_id = args.userId;
-    const generatedTitle = args.title;
-    const history = args.history;
-    const model = args.model;
-    const useageId = args.useageId;
-    const credits = args.credits;
-    const encryptedApiKey = args.encryptedApiKey;
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    const { title } = args;
 
     const chat_id = await ctx.db.insert("chats", {
-      user_id: user_id,
-      title: generatedTitle,
+      user_id: identity.subject,
+      title,
     });
-    console.log("chat_id: ", chat_id);
 
-    // create the message for the new chat
+    const chatCreated = await ctx.db.get(chat_id);
 
-    await ctx.runMutation(api.messages.sendMessage, {
-      conversationId: chat_id,
-      history: history,
-      model: model,
-      useageId: useageId,
-      credits: credits,
-      encryptedApiKey: encryptedApiKey,
-    });
+    if (chatCreated === null) throw new Error("Failed to create chat");
+
+    return chat_id;
   },
 });
 
@@ -191,6 +210,7 @@ export const branchChat = mutation({
         chat_id: new_conversation_id,
         message: msg.message,
         isComplete: msg.isComplete,
+        error: msg.error,
         model: msg.model,
       });
     }
