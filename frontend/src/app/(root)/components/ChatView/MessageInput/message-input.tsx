@@ -112,6 +112,10 @@ export default function MessageInput({
 
   const abortControl = useRef<AbortController | null>(null);
   const uploadImages = useMutation(api.files.uploadImages);
+  const saveUserMessage = useMutation(api.messages.saveUserMessage);
+  const initateAssistantMessage = useMutation(api.messages.initiateMessage);
+  const updateUseage = useMutation(api.users.updateUseage);
+
   // const { completion, complete } = useCompletion({
   //   api: '/api/completion',
   // });
@@ -155,6 +159,22 @@ export default function MessageInput({
     if (!encryptedApiKey) return;
 
     setMessageLoading(true);
+
+    // const latestMessage: ModelMessage = {
+    //   role: "user",
+    //   content: message,
+    // }
+
+    // await saveUserMessage({
+    //   chat_id: activeChat.id,
+    //   userMessage: latestMessage,
+    //   model: selectedModel.id,
+    // });
+
+    // const messageId = await initateAssistantMessage({
+    //   chat_id: activeChat.id,
+    //   model: selectedModel.id,
+    // });
 
     let chat_id: Id<"chats"> | null;
 
@@ -224,6 +244,27 @@ export default function MessageInput({
       chat_id = activeChat.id;
       console.log("Chat selected...");
     }
+
+    const latestMessage: ModelMessage = {
+      role: "user",
+      content: message,
+    }
+
+    await saveUserMessage({
+      chat_id: chat_id,
+      userMessage: latestMessage,
+      model: selectedModel.id,
+    });
+
+    const messageId = await initateAssistantMessage({
+      chat_id: chat_id,
+      model: selectedModel.id,
+    });
+
+    await updateUseage({
+      useageId: useage._id,
+      credits: useage.messagesRemaining - 1,
+    });
 
     const ctrl = new AbortController();
     abortControl.current = ctrl;
@@ -300,12 +341,10 @@ export default function MessageInput({
 
       await complete(
         JSON.stringify({
-          chat_id,
-          useageId: useage._id,
-          credits: useage.messagesRemaining - 1,
           model: selectedModel.id,
           encryptedApiKey: encryptedApiKey.encryptedApiKey,
-          history: newHistory
+          history: newHistory,
+          messageId: messageId,
         })
       )
     } catch (error) {

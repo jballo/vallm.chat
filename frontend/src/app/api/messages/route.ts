@@ -1,7 +1,10 @@
 // export const runtime = 'edge';
 
 import { auth } from "@clerk/nextjs/server";
-import { fetchAction, fetchMutation } from "convex/nextjs";
+import { 
+  fetchAction, 
+  fetchMutation, 
+} from "convex/nextjs";
 import { NextResponse } from "next/server";
 import { api } from "../../../../convex/_generated/api";
 import { ModelMessage, streamText } from "ai";
@@ -17,23 +20,15 @@ export async function POST(req: Request) {
     if (!token) throw new Error("Failed to authenticate with jwt");
 
     const body = await req.json();
-    // console.log("Body: ", body);
-    // console.log("Type for body: ", typeof body);
-    // console.log("prompt", body.prompt);
     const stringifiedBody = body.prompt;
     const parsedBody = JSON.parse(stringifiedBody);
-    
-    // console.log("parsedBody type: ", typeof parsedBody);
-    // console.log("encryptedApiKey", parsedBody.encryptedApiKey);
 
 
     const { 
-      chat_id,
-      useageId, 
-      credits, 
       model, 
       encryptedApiKey, 
-      history 
+      history,
+      messageId, 
     } = parsedBody;
 
     if (!encryptedApiKey) throw new Error("No encrypted api key provided!");
@@ -52,34 +47,34 @@ export async function POST(req: Request) {
     }
 
 
-    const latestMessage = history[history.length - 1];
-    await fetchMutation(
-      api.messages.saveUserMessage,
-      {
-        chat_id,
-        userMessage: latestMessage,
-        model,
-      },
-      { token }
-    );
+    // const latestMessage = history[history.length - 1];
+    // await fetchMutation(
+    //   api.messages.saveUserMessage,
+    //   {
+    //     chat_id,
+    //     userMessage: latestMessage,
+    //     model,
+    //   },
+    //   { token }
+    // );
 
-    const messageId = await fetchMutation(
-      api.messages.initiateMessage,
-      {
-        chat_id,
-        model,
-      },
-      { token }
-    );
+    // const messageId = await fetchMutation(
+    //   api.messages.initiateMessage,
+    //   {
+    //     chat_id,
+    //     model,
+    //   },
+    //   { token }
+    // );
 
-    await fetchMutation(
-      api.users.updateUseage,
-      {
-        useageId,
-        credits: credits - 1,
-      },
-      { token }
-    );
+    // await fetchMutation(
+    //   api.users.updateUseage,
+    //   {
+    //     useageId,
+    //     credits: credits - 1,
+    //   },
+    //   { token }
+    // );
 
 
     let formattedHistory = history as ModelMessage[];
@@ -128,53 +123,84 @@ export async function POST(req: Request) {
       abortSignal: req.signal,       // for now, the abortSignal implementation will not be focused on
     });
     
-    let streamErrored = false;
-    let errorMessage = "";
-    let content = "";
+    // let streamErrored = false;
+    // let errorMessage = "";
+    // let content = "";
 
-    for await (const chunk of result.fullStream) {
-      if (chunk.type === "text-delta") {
-        content += chunk.text;
-        console.log("content: ", content);
-      } else if (chunk.type === "finish") {
+    // for await (const chunk of result.fullStream) {
+    //   if (chunk.type === "text-delta") {
+    //     content += chunk.text;
+    //     console.log("content: ", content);
+    //   } else if (chunk.type === "finish") {
+    //     await fetchMutation(
+    //       api.messages.updateMessageRoute,
+    //       {
+    //         messageId,
+    //         content,
+    //       },
+    //       { token }
+    //     );
+    //     console.log('Stream finished: ', chunk.finishReason, chunk.totalUsage);
+    //   } else if (chunk.type === "error") {
+    //     streamErrored = true;
+    //     errorMessage = (typeof chunk.error === "string" ? chunk.error : "Chunk error");
+    //     break;
+    //   }
+    // }
+    // if (streamErrored) {
+    //   await fetchMutation(api.messages.errorMessage, {
+    //     messageId,
+    //     errorMessage,
+    //   }, { token });
+
+    //   await fetchMutation(api.messages.completeMessage, {
+    //     messageId,
+    //   }, { token });
+
+    //   return NextResponse.json(
+    //     { error: "AI stream failure", details: errorMessage },
+    //     { status: 500 }
+    //   );
+    // }
+
+    // await fetchMutation(api.messages.completeMessage, {
+    //     messageId
+    //   },
+    //   { token }
+    // );
+
+    return result.toUIMessageStreamResponse({
+      onFinish: async ({ messages }) => {
+        // console.log("message: ", messages);
+        console.log(
+          JSON.stringify(messages, null, 2)
+        );
+
+        const assistantMessage = messages.find(m => m.role === 'assistant');
+
+        const finalText = assistantMessage?.parts
+          .filter(p => p.type === 'text')
+          .map(p => p.text)
+          .join('') || '';
+
         await fetchMutation(
           api.messages.updateMessageRoute,
           {
             messageId,
-            content,
+            content: finalText,
           },
           { token }
         );
-        console.log('Stream finished: ', chunk.finishReason, chunk.totalUsage);
-      } else if (chunk.type === "error") {
-        streamErrored = true;
-        errorMessage = (typeof chunk.error === "string" ? chunk.error : "Chunk error");
-        break;
-      }
-    }
-    if (streamErrored) {
-      await fetchMutation(api.messages.errorMessage, {
-        messageId,
-        errorMessage,
-      }, { token });
 
-      await fetchMutation(api.messages.completeMessage, {
-        messageId,
-      }, { token });
-
-      return NextResponse.json(
-        { error: "AI stream failure", details: errorMessage },
-        { status: 500 }
+        await fetchMutation(api.messages.completeMessage, {
+          messageId
+        },
+        { token }
       );
-    }
 
-    await fetchMutation(api.messages.completeMessage, {
-        messageId
-      },
-      { token }
-    );
-
-    return result.toUIMessageStreamResponse();
+        console.log(finalText);
+      }
+    });
   } catch (error) {
     console.log("Error: ", error);
     

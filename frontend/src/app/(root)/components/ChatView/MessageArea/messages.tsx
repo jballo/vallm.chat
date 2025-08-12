@@ -200,7 +200,7 @@ export function ChatMessages({
     () =>
       messages.map((msg) => (
         <div key={msg._id} className={cn(`mb-8`, {
-          "hidden": msg.isComplete === false && messageLoading,
+          "hidden": msg.isComplete === false,
         })}>
           <div className={cn(`flex flex-col group`, {
             'justify-start': msg.message.role === "assistant",
@@ -282,27 +282,44 @@ export function ChatMessages({
     [messages, messageLoading, activeTab]
   );
 
-  const streamedOptimal = useMemo(() => (<div className={cn(`flex flex-col group justify-start`, {
-    "hidden": (messages.at(-1)?.isComplete === true && messageLoading === false) || activeChat === null,
-  })}>
-    <div className={cn(`max-w-[80%] rounded-2xl rounded-br-md px-4 py-3 bg-muted`)}>
-      {streamedMessage.length < 1 ? (<div className="flex space-x-5 justify-center p-4">
-        <span className="sr-only">Loading...</span>
-        <div className="h-2 w-2 bg-primary rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-        <div className="h-2 w-2 bg-primary rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-        <div className="h-2 w-2 bg-primary rounded-full animate-bounce"></div>
-      </div>) : (
-        <MessageRenderer content={streamedMessage} />
-      )}
+  // const streamedOptimal = useMemo(() => (<div className={cn(`flex flex-col group justify-start`, {
+  // })}>
+  //   <div className={cn(`max-w-[80%] rounded-2xl rounded-br-md px-4 py-3 bg-green-200`)}>
+  //     {streamedMessage.length < 1 ? (<div className="flex space-x-5 justify-center p-4">
+  //       <span className="sr-only">Loading...</span>
+  //       <div className="h-2 w-2 bg-primary rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+  //       <div className="h-2 w-2 bg-primary rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+  //       <div className="h-2 w-2 bg-primary rounded-full animate-bounce"></div>
+  //     </div>) : (
+  //       <MessageRenderer content={streamedMessage} />
+  //     )}
+  //   </div>
+  // </div>), [streamedMessage]);
+
+  const streamedContent = (
+    <div className={cn("flex flex-col group justify-start")}>
+      <div className={cn("max-w-[80%] rounded-2xl rounded-br-md px-4 py-3 bg-muted")}>
+        {streamedMessage.length < 1 ? (
+          <div className="flex space-x-5 justify-center p-4">
+            <span className="sr-only">Loading...</span>
+            <div className="h-2 w-2 bg-primary rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+            <div className="h-2 w-2 bg-primary rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+            <div className="h-2 w-2 bg-primary rounded-full animate-bounce"></div>
+          </div>
+        ) : (
+          <MessageRenderer content={streamedMessage} />
+        )}
+      </div>
     </div>
-  </div>), [streamedMessage, messages.at(-1)?.isComplete, activeChat]);
+  );
 
   return (
     <div className="flex-1 overflow-y-auto p-6">
       <div className="max-w-4xl mx-auto">
         {renderedMessagesOptimal}
-        {streamedOptimal}
-        <div ref={messagesEndRef} />
+        {/* {streamedMessage && streamedMessage.length > 0 && (streamedOptimal)} */}
+        {(streamedMessage.length > 0 && messages.at(-1)?.isComplete === false) && (streamedContent)}
+        {/* <div ref={messagesEndRef} /> */}
       </div>
     </div>
   );

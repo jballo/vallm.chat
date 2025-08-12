@@ -9,7 +9,7 @@ import { useUser } from "@clerk/nextjs";
 import ChatMainHeader from "./Header/chat-main-header";
 import MessageInput from "./MessageInput/message-input";
 import MessageArea from "./MessageArea/MessageArea";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useCompletion } from "@ai-sdk/react";
 
 // const CreditCount = dynamic(() => import("./Header/CreditCount"), {
@@ -71,6 +71,14 @@ export function ChatView({
       setMessageLoading(false);
     }
   });
+
+  // useEffect(() => {
+  //   console.log("completion: ", completion);
+  // }, [completion]);
+
+  useEffect(() => {
+    console.log("ISLOADING: ", messageLoading);
+  }, [messageLoading]);
 
   // const branchChat = useMutation(api.chat.branchChat);
 
