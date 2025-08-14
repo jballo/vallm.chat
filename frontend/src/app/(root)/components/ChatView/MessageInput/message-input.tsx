@@ -7,7 +7,7 @@ import Image from "next/image";
 import { ModelSelector } from "./model-selector";
 import { Button } from "@/atoms/button";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { api } from "../../../../../../convex/_generated/api";
 import { Id } from "../../../../../../convex/_generated/dataModel";
 import { toast } from "sonner";
@@ -86,6 +86,7 @@ interface MessageInputProps {
   messageLoading: boolean;
   setMessageLoading: (val: boolean) => void;
   complete: (prompt: string, options?: CompletionRequestOptions) => Promise<string | null | undefined>
+  stop: () => void
 }
 
 export default function MessageInput({
@@ -97,6 +98,7 @@ export default function MessageInput({
   messageLoading,
   setMessageLoading,
   complete,
+  stop,
 }: MessageInputProps) {
   const { user, isLoaded, isSignedIn } = useUser();
   const { isLoading, isAuthenticated } = useConvexAuth();
@@ -110,7 +112,6 @@ export default function MessageInput({
   const [message, setMessage] = useState("");
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
 
-  const abortControl = useRef<AbortController | null>(null);
   const uploadImages = useMutation(api.files.uploadImages);
   const saveUserMessage = useMutation(api.messages.saveUserMessage);
   const initateAssistantMessage = useMutation(api.messages.initiateMessage);
@@ -123,11 +124,11 @@ export default function MessageInput({
   //   api: '/api/messages'
   // });
 
-  const handleStopStreaming = () => {
-    console.log("Streaming stopped...");
-    abortControl.current?.abort();
-    setMessageLoading(false);
-  }
+  // const handleStopStreaming = () => {
+  //   console.log("Streaming stopped...");
+  //   abortControl.current?.abort();
+  //   setMessageLoading(false);
+  // }
 
   const handleSendMessageRoute = async () => {
     if (!user || !isSignedIn || !isLoaded || !getAllApiKeys) return;
@@ -160,21 +161,6 @@ export default function MessageInput({
 
     setMessageLoading(true);
 
-    // const latestMessage: ModelMessage = {
-    //   role: "user",
-    //   content: message,
-    // }
-
-    // await saveUserMessage({
-    //   chat_id: activeChat.id,
-    //   userMessage: latestMessage,
-    //   model: selectedModel.id,
-    // });
-
-    // const messageId = await initateAssistantMessage({
-    //   chat_id: activeChat.id,
-    //   model: selectedModel.id,
-    // });
 
     let chat_id: Id<"chats"> | null;
 
@@ -266,9 +252,6 @@ export default function MessageInput({
       credits: useage.messagesRemaining - 1,
     });
 
-    const ctrl = new AbortController();
-    abortControl.current = ctrl;
-
     let newHistory: ModelMessage[] = [];
 
     if (uploadedFiles.length > 0) {
@@ -359,7 +342,6 @@ export default function MessageInput({
         });
       }
     } finally {
-      abortControl.current = null;
       console.log("Streaming stopped...");
     }
 
@@ -476,7 +458,7 @@ export default function MessageInput({
               <Button
                 size="icon"
                 className="h-9 w-9 rounded-xl transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                onClick={handleStopStreaming}
+                onClick={stop}
               >
                 <OctagonXIcon className="h-4 w-4" />
               </Button>

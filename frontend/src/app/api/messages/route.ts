@@ -7,7 +7,7 @@ import {
 } from "convex/nextjs";
 import { NextResponse } from "next/server";
 import { api } from "../../../../convex/_generated/api";
-import { ModelMessage, streamText } from "ai";
+import { consumeStream, ModelMessage, streamText } from "ai";
 import { createGroq } from "@ai-sdk/groq";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { getAuthToken } from "@/app/auth";
@@ -45,37 +45,6 @@ export async function POST(req: Request) {
     if (decryptedApiKey.success !== true) {
       throw new Error(`${decryptedApiKey.error}`)
     }
-
-
-    // const latestMessage = history[history.length - 1];
-    // await fetchMutation(
-    //   api.messages.saveUserMessage,
-    //   {
-    //     chat_id,
-    //     userMessage: latestMessage,
-    //     model,
-    //   },
-    //   { token }
-    // );
-
-    // const messageId = await fetchMutation(
-    //   api.messages.initiateMessage,
-    //   {
-    //     chat_id,
-    //     model,
-    //   },
-    //   { token }
-    // );
-
-    // await fetchMutation(
-    //   api.users.updateUseage,
-    //   {
-    //     useageId,
-    //     credits: credits - 1,
-    //   },
-    //   { token }
-    // );
-
 
     let formattedHistory = history as ModelMessage[];
 
@@ -116,72 +85,34 @@ export async function POST(req: Request) {
     
     const modelInvocation = fileSupportedLLMs.includes(model) ? google(model) : groq(model);
 
+
+    let finalText = '';
+
     const result = streamText({
       model: modelInvocation,
       system: "You are a professional assistant",
       messages: formattedHistory,
+      onChunk: ({ chunk }) => {
+        if (chunk.type === "text-delta") {
+          finalText += chunk.text;
+        }
+      },
       abortSignal: req.signal,       // for now, the abortSignal implementation will not be focused on
     });
-    
-    // let streamErrored = false;
-    // let errorMessage = "";
-    // let content = "";
-
-    // for await (const chunk of result.fullStream) {
-    //   if (chunk.type === "text-delta") {
-    //     content += chunk.text;
-    //     console.log("content: ", content);
-    //   } else if (chunk.type === "finish") {
-    //     await fetchMutation(
-    //       api.messages.updateMessageRoute,
-    //       {
-    //         messageId,
-    //         content,
-    //       },
-    //       { token }
-    //     );
-    //     console.log('Stream finished: ', chunk.finishReason, chunk.totalUsage);
-    //   } else if (chunk.type === "error") {
-    //     streamErrored = true;
-    //     errorMessage = (typeof chunk.error === "string" ? chunk.error : "Chunk error");
-    //     break;
-    //   }
-    // }
-    // if (streamErrored) {
-    //   await fetchMutation(api.messages.errorMessage, {
-    //     messageId,
-    //     errorMessage,
-    //   }, { token });
-
-    //   await fetchMutation(api.messages.completeMessage, {
-    //     messageId,
-    //   }, { token });
-
-    //   return NextResponse.json(
-    //     { error: "AI stream failure", details: errorMessage },
-    //     { status: 500 }
-    //   );
-    // }
-
-    // await fetchMutation(api.messages.completeMessage, {
-    //     messageId
-    //   },
-    //   { token }
-    // );
 
     return result.toUIMessageStreamResponse({
-      onFinish: async ({ messages }) => {
+      onFinish: async () => {
         // console.log("message: ", messages);
-        console.log(
-          JSON.stringify(messages, null, 2)
-        );
+        // console.log(
+        //   JSON.stringify(messages, null, 2)
+        // );
 
-        const assistantMessage = messages.find(m => m.role === 'assistant');
+        // const assistantMessage = messages.find(m => m.role === 'assistant');
 
-        const finalText = assistantMessage?.parts
-          .filter(p => p.type === 'text')
-          .map(p => p.text)
-          .join('') || '';
+        // const finalText = assistantMessage?.parts
+        //   .filter(p => p.type === 'text')
+        //   .map(p => p.text)
+        //   .join('') || '';
 
         await fetchMutation(
           api.messages.updateMessageRoute,
@@ -199,7 +130,8 @@ export async function POST(req: Request) {
       );
 
         console.log(finalText);
-      }
+      },
+      consumeSseStream: consumeStream,
     });
   } catch (error) {
     console.log("Error: ", error);

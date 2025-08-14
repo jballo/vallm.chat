@@ -61,7 +61,7 @@ export function ChatView({
     !user || !isLoaded || !isSignedIn ? "skip" : {}
   );
 
-  const { completion, complete } = useCompletion({
+  const { completion, complete, stop } = useCompletion({
     api: '/api/messages',
     experimental_throttle: 50,
     onFinish: () => {
@@ -121,6 +121,7 @@ export function ChatView({
         messageLoading={messageLoading}
         setMessageLoading={setMessageLoading}
         complete={complete}
+        stop={stop}
       />
     </div>
   );

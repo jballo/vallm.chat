@@ -78,76 +78,12 @@ export function ChatMessages({
     });
   };
 
-  // const regenerateMessage = async (msg: QueryMessage) => {
-  //   if (useage === null || useage === undefined) return;
-  //   if (!allAvailableApiKeys) return;
-  //   const selectedProvider =
-  //     msg.model === "gemini-2.0-flash" ? "Gemini" : "Groq";
-
-  //   const encryptedApiKey = allAvailableApiKeys.find(
-  //     (key) => key.provider == selectedProvider
-  //   );
-
-  //   if (encryptedApiKey === undefined) return;
-
-  //   console.log("msg: ", msg);
-  //   console.log("msg role: ", msg.message.role);
-
-  //   const targetIndex = messages.findIndex(
-  //     (tempMsg) => tempMsg._id === msg._id
-  //   );
-  //   if (targetIndex === -1) return;
-
-  //   console.log("index of message: ", targetIndex);
-
-  //   const messagesToDelete =
-  //     msg.message.role === "user"
-  //       ? messages.slice(targetIndex, messages.length)
-  //       : messages.slice(targetIndex - 1, messages.length);
-
-  //   const messageIdsToDelete: Id<"messages">[] =
-  //     msg.message.role === "user"
-  //       ? messages.slice(targetIndex, messages.length).map((m) => m._id)
-  //       : messages.slice(targetIndex - 1, messages.length).map((m) => m._id);
-  //   // const messageIdsToDelete: Id<"messages">[] = messages.slice(targetIndex, messages.length).map(m => m._id);
-
-  //   const history: CoreMessage[] =
-  //     msg.message.role === "user"
-  //       ? messages.slice(0, targetIndex + 1).map((m) => ({
-  //         role: m.message.role,
-  //         content: m.message.content,
-  //       }))
-  //       : messages.slice(0, targetIndex).map((m) => ({
-  //         role: m.message.role,
-  //         content: m.message.content,
-  //       }));
-
-  //   const conversation_id = msg.chat_id;
-
-  //   const model = msg.model;
-
-  //   console.log("messagesToDelete: ", messagesToDelete);
-  //   console.log("history: ", history);
-  //   console.log("messageIdsToDelete: ", messageIdsToDelete);
-  //   console.log("conversation_id: ", conversation_id);
-  //   console.log("model: ", model);
-
-  //   await regenerateResponse({
-  //     conversationId: conversation_id,
-  //     history: history,
-  //     model: model || "",
-  //     messageIdsToDelete: messageIdsToDelete,
-  //     useageId: useage._id,
-  //     credits: useage.messagesRemaining,
-  //     encryptedApiKey: encryptedApiKey.encryptedApiKey,
-  //   });
-  // };
 
   const renderedMessagesOptimal = useMemo(
     () =>
       messages.map((msg) => (
         <div key={msg._id} className={cn(`mb-8`, {
-          "hidden": msg.isComplete === false,
+          "hidden": !msg.isComplete && messageLoading,
         })}>
           <div className={cn(`flex flex-col group`, {
             'justify-start': msg.message.role === "assistant",
@@ -157,7 +93,14 @@ export function ChatMessages({
               'bg-muted': msg.message.role === "assistant",
               'bg-primary text-primary-foreground': msg.message.role === "user"
             })}>
-              {Array.isArray(msg.message.content) ? (
+              {msg.isComplete === false ? (
+                <div className="flex space-x-5 justify-center p-4">
+                  <span className="sr-only">Loading...</span>
+                  <div className="h-2 w-2 bg-primary rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                  <div className="h-2 w-2 bg-primary rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                  <div className="h-2 w-2 bg-primary rounded-full animate-bounce"></div>
+                </div>
+              ) : Array.isArray(msg.message.content) ? (
                 <>
                   {msg.message.content[0].type === "text" && (
                     <MessageRenderer content={msg.message.content[0].text} />
@@ -189,13 +132,6 @@ export function ChatMessages({
                     })}
                   </div>
                 </>
-              ) : msg.message.content.length === 0 ? (
-                <div className="flex space-x-5 justify-center p-4">
-                  <span className="sr-only">Loading...</span>
-                  <div className="h-2 w-2 bg-primary rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-                  <div className="h-2 w-2 bg-primary rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-                  <div className="h-2 w-2 bg-primary rounded-full animate-bounce"></div>
-                </div>
               ) : (
                 <MessageRenderer content={msg.message.content} />
               )}
@@ -248,9 +184,7 @@ export function ChatMessages({
     <div className="flex-1 overflow-y-auto p-6">
       <div className="max-w-4xl mx-auto">
         {renderedMessagesOptimal}
-        {/* {(streamedMessage.length > 0 && messages.at(-1)?.isComplete === false) && (streamedOptimal)} */}
         {(messageLoading) && (streamedOptimal)}
-        {/* <div ref={messagesEndRef} /> */}
       </div>
     </div>
   );
