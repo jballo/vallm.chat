@@ -64,7 +64,7 @@ export const getMessages = query({
 
     const optimalMessages = await ctx.db
       .query("messages")
-      .withIndex("by_chatId", (q) => q.eq("chat_id", conversation_id))
+      .withIndex("by_chat_Id", (q) => q.eq("chat_id", conversation_id))
       .collect();
 
     return optimalMessages;

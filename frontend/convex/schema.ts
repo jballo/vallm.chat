@@ -73,6 +73,7 @@ export default defineSchema({
     authorId: v.string(),
   }).index("by_author", ["authorId"]),
   messages: defineTable({
+    // Legacy fields
     author_id: v.string(),
     chat_id: v.id("chats"),
     message: coreMessage,
@@ -80,9 +81,18 @@ export default defineSchema({
     error: v.boolean(),
     errorMessage: v.optional(v.string()),
     model: v.optional(v.string()),
+    // New fields
+    authorId: v.optional(v.string()),
+    chatId: v.optional(v.id("chats")),
+    modelId: v.optional(v.string()),
+    hasError: v.optional(v.boolean()),
+    errorDetail: v.optional(v.string()),
+    payload: v.optional(coreMessage),
+    isStreaming: v.optional(v.boolean()),
   })
     .index("by_author", ["author_id"])
-    .index("by_chatId", ["chat_id"]),
+    .index("by_chat_Id", ["chat_id"])
+    .index("by_chatId", ["chatId"]),
   invites: defineTable({
     recipient_email: v.string(),
     author_email: v.string(),
