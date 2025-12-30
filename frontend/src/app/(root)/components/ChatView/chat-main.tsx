@@ -81,17 +81,6 @@ export function ChatView({
   }, [completion]);
 
 
-
-  // useEffect(() => {
-  //   console.log("completion: ", completion);
-  // }, [completion]);
-
-  useEffect(() => {
-    console.log("ISLOADING: ", messageLoading);
-  }, [messageLoading]);
-
-  // const branchChat = useMutation(api.chat.branchChat);
-
   return (
     <div className="flex flex-col h-full">
       {/* Chat header */}
@@ -107,7 +96,6 @@ export function ChatView({
         useage={useage}
         getAllApiKeys={getAllApiKeys}
         activeTab={activeTab}
-        messageLoading={messageLoading}
         streamedMessage={temp}
       />
 

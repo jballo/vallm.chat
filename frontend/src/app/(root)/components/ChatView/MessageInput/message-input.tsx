@@ -458,7 +458,10 @@ export default function MessageInput({
               <Button
                 size="icon"
                 className="h-9 w-9 rounded-xl transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                onClick={stop}
+                onClick={() => {
+                  stop();
+                  setMessageLoading(false);
+                }}
               >
                 <OctagonXIcon className="h-4 w-4" />
               </Button>

@@ -28,7 +28,6 @@ interface MessageAreaProps {
   }[]
   | undefined;
   activeTab: "myChats" | "shared";
-  messageLoading: boolean;
   streamedMessage: string;
 }
 
@@ -37,7 +36,6 @@ export default function MessageArea({
   useage,
   getAllApiKeys,
   activeTab,
-  messageLoading,
   streamedMessage,
 }: MessageAreaProps) {
   return (
@@ -49,7 +47,6 @@ export default function MessageArea({
             activeTab={activeTab}
             useage={useage}
             allAvailableApiKeys={getAllApiKeys}
-            messageLoading={messageLoading}
             streamedMessage={streamedMessage}
           />
         ) : (
