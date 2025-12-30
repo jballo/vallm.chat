@@ -192,7 +192,7 @@ export const branchChat = mutation({
 
     const all_messages = await ctx.db
       .query("messages")
-      .withIndex("by_chat_Id", (q) => q.eq("chat_id", conversation_id))
+      .withIndex("by_chatId", (q) => q.eq("chatId", conversation_id))
       .order("asc")
       .collect();
 
@@ -206,12 +206,21 @@ export const branchChat = mutation({
 
     for (const msg of messages) {
       await ctx.db.insert("messages", {
+        // old fields
         author_id: msg.author_id,
         chat_id: new_conversation_id,
         message: msg.message,
         isComplete: msg.isComplete,
         error: msg.error,
         model: msg.model,
+        // new fields
+        authorId: msg.author_id,
+        chatId: new_conversation_id,
+        modelId: msg.model,
+        hasError: msg.error,
+        errorDetail: msg.errorDetail,
+        payload: msg.message,
+        isStreaming: msg.isStreaming
       });
     }
   },
