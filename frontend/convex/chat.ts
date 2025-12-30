@@ -192,7 +192,7 @@ export const branchChat = mutation({
 
     const all_messages = await ctx.db
       .query("messages")
-      .withIndex("by_chatId", (q) => q.eq("chatId", conversation_id))
+      .withIndex("by_chat_Id", (q) => q.eq("chat_id", conversation_id))
       .order("asc")
       .collect();
 
@@ -220,7 +220,7 @@ export const branchChat = mutation({
         hasError: msg.error,
         errorDetail: msg.errorDetail,
         payload: msg.message,
-        isStreaming: msg.isStreaming
+        isStreaming: !msg.isComplete
       });
     }
   },

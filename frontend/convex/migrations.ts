@@ -16,7 +16,8 @@ export const setMessageUpdatedColumnNames = migrations.define({
         if (doc.hasError === undefined) patch.hasError = doc.error;
         if (doc.errorDetail === undefined) patch.errorDetail = doc.errorMessage;
         if (doc.payload === undefined) patch.payload = doc.message;
-
+        if (doc.isStreaming === undefined) patch.isStreaming = !doc.isComplete;
+        
         if (Object.keys(patch).length === 0) return;
 
         await ctx.db.patch(doc._id, patch);

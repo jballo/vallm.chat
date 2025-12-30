@@ -59,7 +59,7 @@ export function ChatMessages({
   };
 
   const recentMessage = messages[messages.length - 1];
-  const recentMessageLoaded = recentMessage !== undefined && recentMessage.isStreaming !== undefined && recentMessage.isStreaming !== false;
+  const recentMessageLoaded = recentMessage !== undefined && recentMessage.isStreaming === true;
 
 
   useEffect(() => {
@@ -94,7 +94,7 @@ export function ChatMessages({
               'bg-muted': msg.message.role === "assistant",
               'bg-primary text-primary-foreground': msg.message.role === "user"
             })}>
-              {msg.isComplete === false ? (
+              {msg.isStreaming ? (
                 <div className="flex space-x-5 justify-center p-4">
                   <span className="sr-only">Loading...</span>
                   <div className="h-2 w-2 bg-primary rounded-full animate-bounce [animation-delay:-0.3s]"></div>
