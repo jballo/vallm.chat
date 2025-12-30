@@ -30,7 +30,6 @@ interface ChatMessagesProps {
     encryptedApiKey: string;
   }[]
   | undefined;
-  messageLoading: boolean;
   streamedMessage: string;
 }
 
@@ -39,7 +38,6 @@ export function ChatMessages({
   activeTab,
   // useage,
   // allAvailableApiKeys,
-  messageLoading,
   streamedMessage,
 }: ChatMessagesProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -59,6 +57,9 @@ export function ChatMessages({
       block: "end",
     });
   };
+
+  const recentMessage = messages[messages.length - 1];
+  const recentMessageLoaded = recentMessage !== undefined && recentMessage.isStreaming === true;
 
 
   useEffect(() => {
@@ -83,7 +84,7 @@ export function ChatMessages({
     () =>
       messages.map((msg) => (
         <div key={msg._id} className={cn(`mb-8`, {
-          "hidden": !msg.isComplete && messageLoading,
+          "hidden": msg.isStreaming,
         })}>
           <div className={cn(`flex flex-col group`, {
             'justify-start': msg.message.role === "assistant",
@@ -93,7 +94,7 @@ export function ChatMessages({
               'bg-muted': msg.message.role === "assistant",
               'bg-primary text-primary-foreground': msg.message.role === "user"
             })}>
-              {msg.isComplete === false ? (
+              {msg.isStreaming ? (
                 <div className="flex space-x-5 justify-center p-4">
                   <span className="sr-only">Loading...</span>
                   <div className="h-2 w-2 bg-primary rounded-full animate-bounce [animation-delay:-0.3s]"></div>
@@ -162,7 +163,7 @@ export function ChatMessages({
           </div>
         </div>
       )),
-    [messages, messageLoading, activeTab]
+    [messages, recentMessageLoaded, activeTab]
   );
 
   const streamedOptimal = useMemo(() => (<div className={cn(`flex flex-col group justify-start`, {
@@ -184,7 +185,7 @@ export function ChatMessages({
     <div className="flex-1 overflow-y-auto p-6">
       <div className="max-w-4xl mx-auto">
         {renderedMessagesOptimal}
-        {(messageLoading) && (streamedOptimal)}
+        {(recentMessageLoaded) && (streamedOptimal)}
       </div>
     </div>
   );
