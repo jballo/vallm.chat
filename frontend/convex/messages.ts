@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { internalMutation, mutation, query } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 import { coreMessage } from "./schema/types";
 // import { api } from "./_generated/api";
 
@@ -110,66 +110,6 @@ export const updateMessageRoute = mutation({
         content: content,
         role: "assistant",
       }
-    });
-  },
-});
-
-export const updateMessage = internalMutation({
-  args: {
-    messageId: v.id("messages"),
-    content: v.string(),
-  },
-  handler: async (ctx, args) => {
-    const messageId = args.messageId;
-    const content = args.content;
-
-    await ctx.db.patch(messageId, {
-      // old field
-      message: {
-        content: content,
-        role: "assistant",
-      },
-      // new field
-      payload: {
-        content: content,
-        role: "assistant",
-      }
-    });
-  },
-});
-
-export const errorMessage = mutation({
-  args: {
-    messageId: v.id("messages"),
-    errorMessage: v.string(),
-  },
-  handler: async (ctx, args) => {
-    const identiy = await ctx.auth.getUserIdentity();
-    if (!identiy) throw new Error("Not authenticated");
-
-    const { messageId, errorMessage } = args;
-    
-    await ctx.db.patch(messageId, {
-      // old fields
-      error: true,
-      errorMessage: errorMessage,
-      //  new fields
-      hasError: true,
-      errorDetail: errorMessage,
-    });
-  }
-})
-
-export const completeMessageRoute = mutation({
-  args: { messageId: v.id("messages") },
-  handler: async (ctx, args) => {
-    // update appropriate message with the completed status
-    const messageId = args.messageId;
-    await ctx.db.patch(messageId, { 
-      // old field
-      isComplete: true,
-      // new field
-      isStreaming: false,
     });
   },
 });
