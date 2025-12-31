@@ -145,7 +145,8 @@ export const decryptApiKey = async (
 
   const parts = encryptedApiKey.split("|", 4);
   if (parts.length !== 4) {
-    throw new Error("Invalid encrypted data format");
+    console.error("[decryptApiKey]: DECRYPTION_ERROR");
+    return { success: false, error: "DECRYPTION_ERROR"};
   }
 
   const [version, ivHex, authTagHex, encryptedHex] = parts;
