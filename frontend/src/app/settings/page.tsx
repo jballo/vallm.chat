@@ -59,25 +59,6 @@ export default function Settings() {
     setTheme(newTheme);
   };
 
-  // const onSubmitOpenRouterKey = async () => {
-  //   console.log("OpenRouter Key Submitted");
-  //   if (openRouterKey.length < 6 || !openRouterKey.startsWith("sk-or-")) {
-  //     toast.error("Invalid OpenRouter Key Format!", {
-  //       description: "Please provide the appropriate api key.",
-  //     });
-  //     return;
-  //   }
-  //   if (!user || !isLoaded || !isSignedIn) return;
-  //   const key = openRouterKey;
-  //   setOpenRouterKey("");
-
-  //   const result = await saveApiKey({
-  //     provider: "OpenRouter",
-  //     apiKey: key,
-  //   });
-
-  //   console.log("Result: ", result);
-  // };
 
   const onSubmitGeminiKey = async () => {
     console.log("Gemini Key Submitted");

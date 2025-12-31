@@ -20,7 +20,7 @@ export const ensureEncryptionKeys = internalMutation({
     entropy: v.string(),
     salt: v.string(),
     version: v.string(),
-    kdf_name: v.union(v.literal('scrypt'), v.literal('argon2')),
+    kdf_name: v.literal('scrypt'), // add argon2 later
     params: v.object({
       N: v.number(),
       r: v.number(),

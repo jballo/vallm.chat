@@ -152,9 +152,9 @@ export const deleteApiKey = action({
   handler: async (
     ctx,
     args
-  ): Promise<{ success: boolean; message: string }> => {
+  ): Promise<{ success: true; message: string; } | { success: false; error: string; }> => {
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
+    if (!identity) return { success: false, error: "Not authenticated" }
 
     const { provider } = args;
 
@@ -169,7 +169,7 @@ export const deleteApiKey = action({
     if (!encryptedApiKey) {
       return {
         success: false,
-        message: `No API key found for ${provider}`,
+        error: `No API key found for ${provider}`,
       };
     }
 
@@ -180,7 +180,7 @@ export const deleteApiKey = action({
     if (result.success == false) {
       return {
         success: false,
-        message: `Failed to delete ${provider} key`,
+        error: `Failed to delete ${provider} key`,
       };
     }
     return {

@@ -39,11 +39,12 @@ const scryptSyncParams = v.object({
   p: v.number(),
 });
 
-const argon2Params = v.object({
-  m: v.number(),
-  t: v.number(),
-  p: v.number(),
-});
+// argon2 params for later use
+// const argon2Params = v.object({
+//   m: v.number(),
+//   t: v.number(),
+//   p: v.number(),
+// });
 
 
 // const modelMessage = v.object({
@@ -111,8 +112,8 @@ export default defineSchema({
     entropy: v.string(),
     salt: v.string(),
     version: v.string(),
-    kdf_name: v.union(v.literal('scrypt'), v.literal('argon2')),
-    params: v.union(scryptSyncParams, argon2Params),
+    kdf_name: v.literal('scrypt'), // add argon2 later
+    params: scryptSyncParams, // argon2 params add later
   }).index("by_user", ["user_id"]),
   userApiKeys: defineTable({
     user_id: v.string(),
