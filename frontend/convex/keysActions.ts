@@ -96,56 +96,6 @@ export const saveApiKey = action({
   },
 });
 
-export const getApiKey = action({
-  args: {
-    provider: v.string(),
-  },
-  handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
-
-    const { provider } = args;
-
-    const encryptionKeys = await ctx.runQuery(
-      internal.keysMutations.getEncryptionKeys,
-      {
-        user_id: identity.subject,
-      }
-    );
-
-    if (!encryptionKeys) throw new Error("No encryption keys found");
-
-    const encryptedApiKey = await ctx.runQuery(
-      internal.keysMutations.getEncryptedApiKey,
-      {
-        user_id: identity.subject,
-        provider: provider,
-      }
-    );
-
-    if (!encryptedApiKey) {
-      return {
-        success: false,
-        message: `No API key found for ${provider}`,
-      };
-    }
-
-    const decryptedApiKey = await decryptApiKey(
-      encryptedApiKey.encryptedApiKey,
-      encryptionKeys.entropy,
-      encryptionKeys.salt,
-      encryptionKeys._creationTime,
-      encryptionKeys.kdf_name,
-      encryptionKeys.params,
-    );
-
-    return {
-      success: true,
-      apiKey: decryptedApiKey,
-    };
-  },
-});
-
 export const simpleDecryptKey = action({
   args: {
     encryptedApiKey: v.string(),
