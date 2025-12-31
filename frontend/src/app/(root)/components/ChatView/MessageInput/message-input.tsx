@@ -86,7 +86,8 @@ interface MessageInputProps {
   messageLoading: boolean;
   setMessageLoading: (val: boolean) => void;
   complete: (prompt: string, options?: CompletionRequestOptions) => Promise<string | null | undefined>
-  stop: () => void
+  stop: () => void;
+  setTemp: (str: string) => void;
 }
 
 export default function MessageInput({
@@ -99,6 +100,7 @@ export default function MessageInput({
   setMessageLoading,
   complete,
   stop,
+  setTemp,
 }: MessageInputProps) {
   const { user, isLoaded, isSignedIn } = useUser();
   const { isLoading, isAuthenticated } = useConvexAuth();
@@ -158,7 +160,7 @@ export default function MessageInput({
     );
 
     if (!encryptedApiKey) return;
-
+    setTemp("");
     setMessageLoading(true);
 
 

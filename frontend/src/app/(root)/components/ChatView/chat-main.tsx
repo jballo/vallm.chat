@@ -66,11 +66,11 @@ export function ChatView({
     experimental_throttle: 50,
     onFinish: () => {
       setMessageLoading(false);
-      setTemp("");
+      // setTemp("");
     },
     onError: () => {
       setMessageLoading(false);
-      setTemp("");
+      // setTemp("");
     },
   });
 
@@ -110,6 +110,7 @@ export function ChatView({
         setMessageLoading={setMessageLoading}
         complete={complete}
         stop={stop}
+        setTemp={setTemp}
       />
     </div>
   );
