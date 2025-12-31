@@ -152,9 +152,9 @@ export const deleteApiKey = action({
   handler: async (
     ctx,
     args
-  ): Promise<{ success: boolean; message: string }> => {
+  ): Promise<{ success: boolean; message: string } | { success: false; error: string; }> => {
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
+    if (!identity) return { success: false, error: "Not authenticated" }
 
     const { provider } = args;
 

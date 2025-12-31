@@ -31,7 +31,7 @@ export const deriveUserKey = async (
   entropy: string,
   createdAt: number,
   salt: string,
-  kdf_name: "scrypt" | "argon2",
+  kdf_name: "scrypt", // add argon2 later
   params: { N: number, r: number, p: number } | { m: number, t: number, p: number }
 ): Promise<Buffer | undefined> => {
   if (kdf_name === "scrypt") {
@@ -89,7 +89,7 @@ export const encryptApiKey = async (
   createdAt: number,
   salt: string,
   version: string,
-  kdf_name: "scrypt" | "argon2",
+  kdf_name: "scrypt", // add argon2 later
   params: { N: number, r: number, p: number } | { m: number, t: number, p: number },
 ): Promise<{ success: true, encryptedKey: string } | { success: false, error: string }> => {
 
@@ -139,7 +139,7 @@ export const decryptApiKey = async (
   userEncryptionKeyEntropy: string,
   userEncryptionKeySalt: string,
   userEncryptionKeyCreatedAt: number,
-  kdf_name: "scrypt" | "argon2",
+  kdf_name: "scrypt", // add argon2 later
   params: { N: number, r: number, p: number } | { m: number, t: number, p: number },
 ): Promise<{ success: true, apiKey: string } | { success: false, error: string }> => {
 

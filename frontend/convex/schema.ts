@@ -111,7 +111,7 @@ export default defineSchema({
     entropy: v.string(),
     salt: v.string(),
     version: v.string(),
-    kdf_name: v.union(v.literal('scrypt'), v.literal('argon2')),
+    kdf_name: v.literal('scrypt'), // add argon2 later
     params: v.union(scryptSyncParams, argon2Params),
   }).index("by_user", ["user_id"]),
   userApiKeys: defineTable({
