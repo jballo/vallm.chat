@@ -85,6 +85,9 @@ export const getAcceptedChats = query({
       .collect();
 
     const chatIds = optimalInvites.map((invite) => invite.chat_id);
+
+    if (chatIds.length === 0) return [];
+
     const chats = await ctx.db
       .query("chats")
       .filter((q) => q.or(...chatIds.map((id) => q.eq(q.field("_id"), id))))
@@ -99,6 +102,11 @@ export const acceptInvitation = mutation({
     invitation_id: v.id("invites"),
   },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (identity === null) {
+      throw new Error("Not authenticated");
+    }
+
     const { invitation_id } = args;
 
     await ctx.db.patch(invitation_id, { status: "accepted" });
@@ -110,6 +118,11 @@ export const denyInvitation = mutation({
     invitation_id: v.id("invites"),
   },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (identity === null) {
+      throw new Error("Not authenticated");
+    }
+    
     const { invitation_id } = args;
 
     await ctx.db.delete(invitation_id);
