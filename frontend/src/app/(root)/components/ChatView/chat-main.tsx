@@ -61,16 +61,16 @@ export function ChatView({
     !user || !isLoaded || !isSignedIn ? "skip" : {}
   );
 
-  const { completion, complete } = useCompletion({
+  const { completion, complete, stop } = useCompletion({
     api: '/api/messages',
     experimental_throttle: 50,
     onFinish: () => {
       setMessageLoading(false);
-      setTemp("");
+      // setTemp("");
     },
     onError: () => {
       setMessageLoading(false);
-      setTemp("");
+      // setTemp("");
     },
   });
 
@@ -80,17 +80,6 @@ export function ChatView({
     setTemp(completion);
   }, [completion]);
 
-
-
-  // useEffect(() => {
-  //   console.log("completion: ", completion);
-  // }, [completion]);
-
-  useEffect(() => {
-    console.log("ISLOADING: ", messageLoading);
-  }, [messageLoading]);
-
-  // const branchChat = useMutation(api.chat.branchChat);
 
   return (
     <div className="flex flex-col h-full">
@@ -107,7 +96,6 @@ export function ChatView({
         useage={useage}
         getAllApiKeys={getAllApiKeys}
         activeTab={activeTab}
-        messageLoading={messageLoading}
         streamedMessage={temp}
       />
 
@@ -121,6 +109,8 @@ export function ChatView({
         messageLoading={messageLoading}
         setMessageLoading={setMessageLoading}
         complete={complete}
+        stop={stop}
+        setTemp={setTemp}
       />
     </div>
   );

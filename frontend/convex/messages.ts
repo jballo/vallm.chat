@@ -17,12 +17,21 @@ export const saveUserMessage = mutation({
     const { chat_id, userMessage, model } = args;
 
     await ctx.db.insert("messages", {
+      // old fields
       author_id: idendity.subject,
       chat_id,
       message: userMessage,
       isComplete: true,
       error: false,
       model: model,
+
+      // new fields
+      authorId: idendity.subject,
+      chatId: chat_id,
+      modelId: model,
+      hasError: false,
+      payload: userMessage,
+      isStreaming: false,
     });
   },
 });
@@ -39,12 +48,20 @@ export const initiateMessage = mutation({
     const { chat_id, model } = args;
 
     const message_id = await ctx.db.insert("messages", {
+      // old fields
       author_id: idenity.subject,
       chat_id: chat_id,
       message: { role: "assistant", content: "" },
       isComplete: false,
       error: false,
       model: model,
+      // new fields
+      authorId: idenity.subject,
+      chatId: chat_id,
+      modelId: model,
+      hasError: false,
+      payload: { role: "assistant", content: "" },
+      isStreaming: true,
     });
 
     return message_id;
@@ -64,7 +81,7 @@ export const getMessages = query({
 
     const optimalMessages = await ctx.db
       .query("messages")
-      .withIndex("by_chatId", (q) => q.eq("chat_id", conversation_id))
+      .withIndex("by_chatId", (q) => q.eq("chatId", conversation_id))
       .collect();
 
     return optimalMessages;
@@ -83,10 +100,16 @@ export const updateMessageRoute = mutation({
     const content = args.content;
 
     await ctx.db.patch(messageId, {
+      // old field
       message: {
         content: content,
         role: "assistant",
       },
+      // new field
+      payload: {
+        content: content,
+        role: "assistant",
+      }
     });
   },
 });
@@ -101,10 +124,16 @@ export const updateMessage = internalMutation({
     const content = args.content;
 
     await ctx.db.patch(messageId, {
+      // old field
       message: {
         content: content,
         role: "assistant",
       },
+      // new field
+      payload: {
+        content: content,
+        role: "assistant",
+      }
     });
   },
 });
@@ -121,8 +150,12 @@ export const errorMessage = mutation({
     const { messageId, errorMessage } = args;
     
     await ctx.db.patch(messageId, {
+      // old fields
       error: true,
       errorMessage: errorMessage,
+      //  new fields
+      hasError: true,
+      errorDetail: errorMessage,
     });
   }
 })
@@ -132,8 +165,12 @@ export const completeMessageRoute = mutation({
   handler: async (ctx, args) => {
     // update appropriate message with the completed status
     const messageId = args.messageId;
-
-    await ctx.db.patch(messageId, { isComplete: true });
+    await ctx.db.patch(messageId, { 
+      // old field
+      isComplete: true,
+      // new field
+      isStreaming: false,
+    });
   },
 });
 
@@ -145,7 +182,12 @@ export const completeMessage = mutation({
     // update appropriate message with the completed status
     const messageId = args.messageId;
 
-    await ctx.db.patch(messageId, { isComplete: true });
+    await ctx.db.patch(messageId, { 
+      // old field
+      isComplete: true,
+      // new field
+      isStreaming: false,
+    });
   },
 });
 
