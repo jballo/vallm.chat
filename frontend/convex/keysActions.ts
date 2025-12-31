@@ -169,7 +169,7 @@ export const deleteApiKey = action({
     if (!encryptedApiKey) {
       return {
         success: false,
-        message: `No API key found for ${provider}`,
+        error: `No API key found for ${provider}`,
       };
     }
 
@@ -180,7 +180,7 @@ export const deleteApiKey = action({
     if (result.success == false) {
       return {
         success: false,
-        message: `Failed to delete ${provider} key`,
+        error: `Failed to delete ${provider} key`,
       };
     }
     return {
