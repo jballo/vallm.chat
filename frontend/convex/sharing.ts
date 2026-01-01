@@ -24,7 +24,7 @@ export const createInvitation = mutation({
     const acceptedInvites = await ctx.db
       .query("invites")
       .withIndex("by_chat_id", (q) => q.eq("chat_id", chat._id))
-      .filter((q) => q.eq(q.field("chat_id"), chat._id))
+      .filter((q) => q.eq(q.field("status"), "accepted"))
       .collect();
 
     const invitees = acceptedInvites.map((invitee) => invitee.author_email);
@@ -165,8 +165,6 @@ export const leaveSharedChat = mutation({
       .first();
 
     if (invitation === null) throw new Error("Invitation not found");
-
-    if ( email !== invitation.recipient_email ) throw new Error("Not authorized to leave shared chat");
 
     await ctx.db.delete(invitation._id);
   },
