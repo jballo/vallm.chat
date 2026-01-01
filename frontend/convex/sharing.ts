@@ -9,16 +9,19 @@ export const createInvitation = mutation({
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (identity === null) {
-      throw new Error("Not authenticated");
-    }
+    if (identity === null) throw new Error("Not authenticated");
 
     const email = identity.email;
-    if (!email) {
-      throw new Error("Failed to get user email");
-    }
+    if (email === undefined) throw new Error("Failed to get user email");
 
     const { recipient_email, chat_id, chat_name } = args;
+
+    const recipient = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("email"), recipient_email))
+      .first();
+
+    if ( recipient == undefined ) throw new Error("Failed to find recipient");
 
     await ctx.db.insert("invites", {
       recipient_email: recipient_email,
@@ -34,20 +37,10 @@ export const getPendingInvitations = query({
   args: {},
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (identity === null) {
-      throw new Error("Not authenticated");
-    }
+    if (identity === null) throw new Error("Not authenticated");
 
     const email = identity.email;
-    if (!email) {
-      throw new Error("Failed to get user email");
-    }
-
-    // const invites = await ctx.db
-    //   .query("invites")
-    //   .filter((q) => q.eq(q.field("recipient_email"), email))
-    // .filter((q) => q.eq(q.field("status"), "pending"))
-    //   .collect();
+    if ( email === undefined ) throw new Error("Failed to get user email");
 
     const optimalInvites = await ctx.db
       .query("invites")
@@ -63,28 +56,19 @@ export const getAcceptedChats = query({
   args: {},
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (identity === null) {
-      throw new Error("Not authenticated");
-    }
+    if ( identity === null) throw new Error("Not authenticated");
 
     const email = identity.email;
-    if (!email) {
-      throw new Error("Failed to get user email");
-    }
+    if ( email === undefined ) throw new Error("Failed to get user email");
 
-    // const invites = await ctx.db
-    //   .query("invites")
-    //   .filter((q) => q.eq(q.field("recipient_email"), email))
-    //   .filter((q) => q.eq(q.field("status"), "accepted"))
-    //   .collect();
 
-    const optimalInvites = await ctx.db
+    const invites = await ctx.db
       .query("invites")
       .withIndex("by_recipient_email", (q) => q.eq("recipient_email", email))
       .filter((q) => q.eq(q.field("status"), "accepted"))
       .collect();
 
-    const chatIds = optimalInvites.map((invite) => invite.chat_id);
+    const chatIds = invites.map((invite) => invite.chat_id);
 
     if (chatIds.length === 0) return [];
 
@@ -103,11 +87,17 @@ export const acceptInvitation = mutation({
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (identity === null) {
-      throw new Error("Not authenticated");
-    }
+    if ( identity === null ) throw new Error("Not authenticated");
+
+    const email = identity.email;
+    if ( email === undefined ) throw new Error("Failed to get user email");
 
     const { invitation_id } = args;
+    const invitation = await ctx.db.get(invitation_id);
+
+    if ( invitation === null) throw new Error("Failed to get invitation");
+
+    if ( invitation.recipient_email !== email ) throw new Error("Not authorized to accept this invitation");
 
     await ctx.db.patch(invitation_id, { status: "accepted" });
   },
@@ -119,11 +109,19 @@ export const denyInvitation = mutation({
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (identity === null) {
+    if ( identity === null ) {
       throw new Error("Not authenticated");
     }
-    
+
+    const email = identity.email;
+    if ( email === undefined ) throw new Error("Failed to user email");
+
     const { invitation_id } = args;
+    const invitation = await ctx.db.get(invitation_id);
+
+    if ( invitation === null ) throw new Error("Failed to get invitation");
+
+    if ( invitation.recipient_email !== email ) throw new Error("Not authorized to deny this invitation");
 
     await ctx.db.delete(invitation_id);
   },
@@ -135,30 +133,23 @@ export const leaveSharedChat = mutation({
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (identity === null) {
-      throw new Error("Not authenticated");
-    }
+    if (identity === null) throw new Error("Not authenticated");
 
     const email = identity.email;
-    if (!email) {
-      throw new Error("Failed to get user email");
-    }
+    if ( email === undefined ) throw new Error("Failed to get user email");
 
     const { chat_id } = args;
 
-    // const invite = await ctx.db
-    //   .query("invites")
-    // .filter((q) => q.eq(q.field("chat_id"), chat_id))
-    //   .first();
-
-    const optimalInvite = await ctx.db
+    const invitation = await ctx.db
       .query("invites")
       .withIndex("by_recipient_email", (q) => q.eq("recipient_email", email))
       .filter((q) => q.eq(q.field("chat_id"), chat_id))
       .first();
 
-    if (!optimalInvite) throw new Error("Invitation not found");
+    if (invitation === null) throw new Error("Invitation not found");
 
-    await ctx.db.delete(optimalInvite._id);
+    if ( email !== invitation.recipient_email ) throw new Error("Not authorized to leave shared chat")
+
+    await ctx.db.delete(invitation._id);
   },
 });
