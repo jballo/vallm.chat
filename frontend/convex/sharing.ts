@@ -44,7 +44,7 @@ export const createInvitation = mutation({
       .filter((q) => q.eq(q.field("email"), recipient_email))
       .first();
     
-    if ( recipient === undefined ) throw new Error("Failed to find recipient");
+    if ( recipient === null ) throw new Error("Failed to find recipient");
     if ( allowedToShare.includes(recipient_email) ) throw new Error("Chat already shared with user");
     
     await ctx.db.insert("invites", {
@@ -133,9 +133,7 @@ export const denyInvitation = mutation({
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
-    if ( identity === null ) {
-      throw new Error("Not authenticated");
-    }
+    if ( identity === null ) throw new Error("Not authenticated");
 
     const email = identity.email;
     if ( email === undefined ) throw new Error("Failed to get user email");
@@ -143,8 +141,9 @@ export const denyInvitation = mutation({
     const { invitation_id } = args;
     const invitation = await ctx.db.get(invitation_id);
 
+    
     if ( invitation === null ) throw new Error("Failed to get invitation");
-
+    
     if ( invitation.recipient_email !== email ) throw new Error("Not authorized to deny this invitation");
 
     await ctx.db.delete(invitation_id);
