@@ -20,6 +20,12 @@ export const createInvitation = mutation({
     if ( chat === null ) throw new Error("Failed to find chat");
 
     const chatOwnerId = chat.user_id;
+    const owner = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("user_id"), chatOwnerId))
+      .first();
+    
+    if (owner === null) throw new Error("Could not find owner of chat");
 
     const acceptedInvites = await ctx.db
       .query("invites")
@@ -27,16 +33,16 @@ export const createInvitation = mutation({
       .filter((q) => q.eq(q.field("status"), "accepted"))
       .collect();
 
-    const invitees = acceptedInvites.map((invitee) => invitee.recipient_email);
+    const inviteesEmails = acceptedInvites.map((invitee) => invitee.recipient_email);
 
-    const allowedToShare = [...invitees, chatOwnerId];
+    const allowedToShare = [...inviteesEmails, owner.email];
     if ( !allowedToShare.includes(email) ) throw new Error("Not authorized to share chat");
     
 
     const recipient = await ctx.db
-    .query("users")
-    .filter((q) => q.eq(q.field("email"), recipient_email))
-    .first();
+      .query("users")
+      .filter((q) => q.eq(q.field("email"), recipient_email))
+      .first();
     
     if ( recipient === undefined ) throw new Error("Failed to find recipient");
     if ( allowedToShare.includes(recipient_email) ) throw new Error("Chat already shared with user");
