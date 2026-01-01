@@ -27,7 +27,7 @@ export const createInvitation = mutation({
       .filter((q) => q.eq(q.field("status"), "accepted"))
       .collect();
 
-    const invitees = acceptedInvites.map((invitee) => invitee.author_email);
+    const invitees = acceptedInvites.map((invitee) => invitee.recipient_email);
 
     const allowedToShare = [...invitees, chatOwnerId];
     if ( !allowedToShare.includes(email) ) throw new Error("Not authorized to share chat");
