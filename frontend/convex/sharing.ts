@@ -13,16 +13,34 @@ export const createInvitation = mutation({
 
     const email = identity.email;
     if (email === undefined) throw new Error("Failed to get user email");
-
+    
     const { recipient_email, chat_id, chat_name } = args;
 
+    const chat = await ctx.db.get(chat_id);
+    if ( chat === null ) throw new Error("Failed to find chat");
+
+    const chatOwnerId = chat.user_id;
+
+    const acceptedInvites = await ctx.db
+      .query("invites")
+      .withIndex("by_chat_id", (q) => q.eq("chat_id", chat._id))
+      .filter((q) => q.eq(q.field("chat_id"), chat._id))
+      .collect();
+
+    const invitees = acceptedInvites.map((invitee) => invitee.author_email);
+
+    const allowedToShare = [...invitees, chatOwnerId];
+    if ( !allowedToShare.includes(email) ) throw new Error("Not authorized to share chat");
+    
+
     const recipient = await ctx.db
-      .query("users")
-      .filter((q) => q.eq(q.field("email"), recipient_email))
-      .first();
-
-    if ( recipient == undefined ) throw new Error("Failed to find recipient");
-
+    .query("users")
+    .filter((q) => q.eq(q.field("email"), recipient_email))
+    .first();
+    
+    if ( recipient === undefined ) throw new Error("Failed to find recipient");
+    if ( allowedToShare.includes(recipient_email) ) throw new Error("Chat already shared with user");
+    
     await ctx.db.insert("invites", {
       recipient_email: recipient_email,
       author_email: email,
@@ -114,7 +132,7 @@ export const denyInvitation = mutation({
     }
 
     const email = identity.email;
-    if ( email === undefined ) throw new Error("Failed to user email");
+    if ( email === undefined ) throw new Error("Failed to get user email");
 
     const { invitation_id } = args;
     const invitation = await ctx.db.get(invitation_id);
@@ -148,7 +166,7 @@ export const leaveSharedChat = mutation({
 
     if (invitation === null) throw new Error("Invitation not found");
 
-    if ( email !== invitation.recipient_email ) throw new Error("Not authorized to leave shared chat")
+    if ( email !== invitation.recipient_email ) throw new Error("Not authorized to leave shared chat");
 
     await ctx.db.delete(invitation._id);
   },
