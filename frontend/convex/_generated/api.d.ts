@@ -10,6 +10,7 @@
 
 import type * as chat from "../chat.js";
 import type * as files from "../files.js";
+import type * as http from "../http.js";
 import type * as keysActions from "../keysActions.js";
 import type * as keysMutations from "../keysMutations.js";
 import type * as messages from "../messages.js";
@@ -28,6 +29,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   chat: typeof chat;
   files: typeof files;
+  http: typeof http;
   keysActions: typeof keysActions;
   keysMutations: typeof keysMutations;
   messages: typeof messages;
