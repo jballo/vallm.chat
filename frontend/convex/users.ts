@@ -4,29 +4,30 @@ import { internalMutation, mutation, query } from "./_generated/server";
 
 export const initiateUser = internalMutation({
   args: {
-    userId: v.string(), 
+    externalId: v.string(), 
     email: v.string(),
   },
   handler: async (ctx, args) => {
 
-    const { userId, email } = args;
+    const { externalId, email } = args;
 
-    const userExistById = await ctx.db
+    const userByExternalId = await ctx.db
       .query("users")
-      .filter((q) => q.eq(q.field("user_id"), userId))
-      .first();
+      .withIndex("by_ExternalId", (q) => q.eq("externalId", externalId))
+      .unique();
 
-    if (userExistById !== null) throw new ConvexError("User already exists");
+    if (userByExternalId !== null) throw new ConvexError("User already exists");
 
-    console.log(`Signing up ${userId}: ${email}`);
+    console.log(`Signing up ${externalId}: ${email}`);
 
     await ctx.db.insert("users", {
-      user_id: userId,
+      user_id: externalId,
       email: email,
+      externalId,
     });
 
     await ctx.db.insert("useage", {
-      user_id: userId,
+      user_id: externalId,
       messagesRemaining: 50,
     });
   },

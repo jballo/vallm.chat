@@ -26,7 +26,7 @@ http.route({
     
                     
                     await ctx.runMutation(internal.users.initiateUser, {
-                        userId,
+                        externalId: userId,
                         email,
                     });
                     break;
@@ -44,7 +44,7 @@ http.route({
             const convexError = error instanceof ConvexError;
 
             if (convexError) return new Response("ALREADY EXISTS", { status: 409 })
-                
+
             return new Response("Error occurred", { status: 500});
         }
 

@@ -61,7 +61,10 @@ export default defineSchema({
   users: defineTable({
     user_id: v.string(),
     email: v.string(),
-  }),
+    // new field
+    externalId: v.optional(v.string()), // currently clerk
+  })
+  .index("by_ExternalId", ["externalId"]),
   chats: defineTable({
     user_id: v.string(),
     title: v.string(),

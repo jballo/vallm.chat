@@ -22,6 +22,13 @@ export const setMessageUpdatedColumnNames = migrations.define({
 
         await ctx.db.patch(doc._id, patch);
     },
-})
+});
 
-export const runIt = migrations.runner(internal.migrations.setMessageUpdatedColumnNames);
+export const addClarifyingColumnsToUsersTable = migrations.define({
+    table: "users",
+    migrateOne: async (ctx, doc) => {
+        if (doc.externalId === undefined ) await ctx.db.patch(doc._id, { externalId: doc.user_id });
+    },
+});
+
+export const runIt = migrations.runner(internal.migrations.addClarifyingColumnsToUsersTable);
