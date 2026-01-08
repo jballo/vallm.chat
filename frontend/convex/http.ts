@@ -13,7 +13,7 @@ http.route({
     handler: httpAction(async (ctx, request) => {
         const event = await validateRequest(request);
 
-        if (event === undefined) return new Response ("Error occured", { status: 400});
+        if (event === undefined) return new Response ("Error occurred", { status: 400});
 
         try {
             switch (event.type) {
@@ -39,8 +39,8 @@ http.route({
 
 
         } catch (error) {
-            console.error("[/clerk-users-webhook]: Error occured: ", error);
-            return new Response("Error occured", { status: 500});
+            console.error("[/clerk-users-webhook]: Error occurred: ", error);
+            return new Response("Error occurred", { status: 500});
         }
 
     }),
@@ -50,10 +50,18 @@ http.route({
 async function validateRequest(request: Request): Promise<WebhookEvent | undefined> {
     const payloadString = await request.text();
 
+    const svixId = request.headers.get("svix-id");
+    const svixTimestamp = request.headers.get("svix-timestamp");
+    const svixSignature = request.headers.get("svix-signature");
+
+    if ( svixId === null || svixTimestamp === null || svixSignature === null) {
+        return undefined;
+    }
+
     const svixHeaders = {
-        "svix-id": request.headers.get("svix-id")!,
-        "svix-timestamp": request.headers.get("svix-timestamp")!,
-        "svix-signature": request.headers.get("svix-signature")!,
+        "svix-id": svixId,
+        "svix-timestamp": svixTimestamp,
+        "svix-signature": svixSignature,
     };
 
     const webhookSecret = process.env.CLERK_WEBHOOK_SECRET;
