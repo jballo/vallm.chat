@@ -3,6 +3,7 @@ import { httpAction } from "./_generated/server";
 import type { WebhookEvent } from "@clerk/backend";
 import { Webhook } from "svix";
 import { internal } from "./_generated/api";
+import { ConvexError } from "convex/values";
 
 const http = httpRouter();
 
@@ -35,11 +36,15 @@ http.route({
                     console.log("Ignored Clerk webhook event", event.type);
             }
     
-            return new Response(null, { status: 200 });
+            return new Response("Succesful user creation", { status: 200 });
 
 
         } catch (error) {
-            console.error("[/clerk-users-webhook]: Error occurred: ", error);
+
+            const convexError = error instanceof ConvexError;
+
+            if (convexError) return new Response("ALREADY EXISTS", { status: 409 })
+                
             return new Response("Error occurred", { status: 500});
         }
 

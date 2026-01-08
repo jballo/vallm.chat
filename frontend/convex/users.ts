@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { internalMutation, mutation, query } from "./_generated/server";
 
 
@@ -16,7 +16,7 @@ export const initiateUser = internalMutation({
       .filter((q) => q.eq(q.field("user_id"), userId))
       .first();
 
-    if (userExistById !== null) throw new Error("User already exists");
+    if (userExistById !== null) throw new ConvexError("User already exists");
 
     console.log(`Signing up ${userId}: ${email}`);
 
