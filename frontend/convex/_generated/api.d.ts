@@ -19,6 +19,7 @@ import type * as schema_types from "../schema/types.js";
 import type * as sharing from "../sharing.js";
 import type * as users from "../users.js";
 import type * as utils_encryption from "../utils/encryption.js";
+import type * as utils_files from "../utils/files.js";
 
 import type {
   ApiFromModules,
@@ -38,6 +39,7 @@ declare const fullApi: ApiFromModules<{
   sharing: typeof sharing;
   users: typeof users;
   "utils/encryption": typeof utils_encryption;
+  "utils/files": typeof utils_files;
 }>;
 
 /**

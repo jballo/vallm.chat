@@ -7,6 +7,7 @@ export const uploadImages = mutation({
       v.object({
         name: v.string(),
         url: v.string(),
+        key: v.string(),
         mimeType: v.string(),
         size: v.number(),
       })
@@ -30,6 +31,7 @@ export const uploadImages = mutation({
         size: file.size,
         authorId: user_id,
         mimeType: file.mimeType,
+        key: file.key,
       });
       uploadedFiles.push({
         type: "file",

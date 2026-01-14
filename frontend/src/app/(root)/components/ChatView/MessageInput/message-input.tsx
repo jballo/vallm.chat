@@ -429,6 +429,7 @@ export default function MessageInput({
                       url: string;
                       size: number;
                       mimeType: string;
+                      key: string;
                     }[] = [];
 
                     res.map((file) => {
@@ -437,6 +438,7 @@ export default function MessageInput({
                         url: file.ufsUrl,
                         size: file.size,
                         mimeType: file.type,
+                        key: file.key,
                       });
                     });
 

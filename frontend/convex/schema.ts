@@ -68,6 +68,8 @@ export default defineSchema({
   chats: defineTable({
     user_id: v.string(),
     title: v.string(),
+    // new field
+    userId: v.optional(v.id("users")),
   }).index("by_user", ["user_id"]),
   files: defineTable({
     name: v.string(),
@@ -75,6 +77,9 @@ export default defineSchema({
     mimeType: v.string(),
     size: v.number(),
     authorId: v.string(),
+    // new field
+    ownerId: v.optional(v.id("users")),
+    key: v.optional(v.string()),
   }).index("by_author", ["authorId"]),
   messages: defineTable({
     // Legacy fields
@@ -93,6 +98,8 @@ export default defineSchema({
     errorDetail: v.optional(v.string()),
     payload: v.optional(coreMessage),
     isStreaming: v.optional(v.boolean()),
+
+    ownerId: v.optional(v.id("users")),
   })
     .index("by_author", ["author_id"])
     .index("by_chat_Id", ["chat_id"])

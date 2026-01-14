@@ -31,4 +31,18 @@ export const addClarifyingColumnsToUsersTable = migrations.define({
     },
 });
 
-export const runIt = migrations.runner(internal.migrations.addClarifyingColumnsToUsersTable);
+export const defineFileKeyInFilesTable = migrations.define({
+    table: "files",
+    migrateOne: async (ctx, doc) => {
+        if (doc.key !== undefined) return;
+        const parsedUrl = doc.url.split('/f/');
+        if (parsedUrl.length === 2) {
+            const key = parsedUrl[1];
+            if (key && key.trim().length > 0) {
+                await ctx.db.patch(doc._id, { key });
+            }
+        }
+    },
+});
+
+export const runIt = migrations.runner(internal.migrations.defineFileKeyInFilesTable);

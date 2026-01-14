@@ -18,7 +18,7 @@ http.route({
 
         try {
             switch (event.type) {
-                case "user.created":
+                case "user.created": {
                     const userId: string | undefined = event.data.id;
                     const email: string | undefined = event.data.email_addresses?.[0]?.email_address;
     
@@ -30,13 +30,24 @@ http.route({
                         email,
                     });
                     break;
+                }
                 // case "user.updated":
-                // case "user.deleted"
+                case "user.deleted": {
+                    const userId: string | undefined = event.data.id;
+
+
+                    if ( userId === undefined ) return new Response("Invalid payload", { status: 400 });
+
+                    await ctx.runMutation(internal.users.deleteUser, {
+                        externalId: userId,
+                    });
+                    break;
+                }
                 default:
                     console.log("Ignored Clerk webhook event", event.type);
             }
     
-            return new Response("Succesful user creation", { status: 200 });
+            return new Response("Succesful user event", { status: 200 });
 
 
         } catch (error) {
