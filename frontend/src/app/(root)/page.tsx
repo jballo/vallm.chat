@@ -28,6 +28,9 @@ export default function Home() {
   } | null>(null);
   const [activeTab, setActiveTab] = useState<"myChats" | "shared">("myChats");
 
+
+  
+
   return (
     <div className="flex w-full h-screen">
       <ChatSidebar

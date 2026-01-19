@@ -92,20 +92,28 @@ export const hybridSaveChat = mutation({
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
+    if (identity === null) throw new Error("Not authenticated");
 
     const { title } = args;
 
-    const chat_id = await ctx.db.insert("chats", {
-      user_id: identity.subject,
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_ExternalId", (q) => q.eq("externalId", identity.subject))
+      .unique();
+
+    if (user === null) throw new Error("Failed to find user");
+
+    const chatId = await ctx.db.insert("chats", {
+      ownerId: user._id,
       title,
     });
 
-    const chatCreated = await ctx.db.get(chat_id);
+  
+    const chatCreated = await ctx.db.get(chatId);
 
     if (chatCreated === null) throw new Error("Failed to create chat");
 
-    return chat_id;
+    return chatId;
   },
 });
 
@@ -117,17 +125,16 @@ export const getChats = query({
       throw new Error("Not authenticated");
     }
 
-    const user_id = identity.subject;
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_ExternalId", (q) => q.eq("externalId", identity.subject))
+      .unique();
 
-    // const chats = await ctx.db
-    //   .query("chats")
-    //   .filter((q) => q.eq(q.field("user_id"), user_id))
-    //   .order("desc")
-    //   .collect();
+    if (user === null) throw new Error("Failed to find user");
 
     const optimalChats = await ctx.db
       .query("chats")
-      .withIndex("by_user", (q) => q.eq("user_id", user_id))
+      .withIndex("by_ownerId", (q) => q.eq("ownerId", user._id))
       .order("desc")
       .collect();
 
@@ -140,13 +147,15 @@ export const getChats = query({
 export const deleteChat = mutation({
   args: { conversationId: v.id("chats") },
   handler: async (ctx, args) => {
-    const conversation_id = args.conversationId;
+    const identity = await ctx.auth.getUserIdentity();
 
-    // query messages for chat
+    if (identity === null) throw new Error("Not authenticated");
+
+    const { conversationId } = args;
 
     const messages = await ctx.db
       .query("messages")
-      .filter((q) => q.eq(q.field("chat_id"), conversation_id))
+      .withIndex("by_chatId", (q) => q.eq("chatId", conversationId))
       .collect();
 
     // delete chat messsages for appropriate chat
@@ -157,7 +166,7 @@ export const deleteChat = mutation({
     // collect invitations for appropriate chat
     const invitations = await ctx.db
       .query("invites")
-      .withIndex("by_chat_id", (q) => q.eq("chat_id", conversation_id))
+      .withIndex("by_chatId", (q) => q.eq("chatId", conversationId))
       .collect();
 
     // delte invitations for chat
@@ -166,38 +175,44 @@ export const deleteChat = mutation({
     }
 
     // delete chat
-    await ctx.db.delete(conversation_id);
+    await ctx.db.delete(conversationId);
   },
 });
 
 export const branchChat = mutation({
   args: {
     title: v.string(),
-    conversation_id: v.id("chats"),
-    message_id: v.id("messages"),
+    conversationId: v.id("chats"),
+    messageId: v.id("messages"),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (identity === null) {
       throw new Error("Not authenticated");
     }
-    const user_id = identity.subject;
+    
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_ExternalId", (q) => q.eq("externalId", identity.subject))
+      .unique();
 
-    const { title, conversation_id, message_id } = args;
+    if (user === null) throw new Error("Failed to find user");
 
-    const new_conversation_id = await ctx.db.insert("chats", {
-      user_id: user_id,
+    const { title, conversationId, messageId } = args;
+
+    const newConversationId = await ctx.db.insert("chats", {
+      ownerId: user._id,
       title: title,
     });
 
     const all_messages = await ctx.db
       .query("messages")
-      .withIndex("by_chat_Id", (q) => q.eq("chat_id", conversation_id))
+      .withIndex("by_chatId", (q) => q.eq("chatId", conversationId))
       .order("asc")
       .collect();
 
     // find the position of the message on the chronological order
-    const targetIndex = all_messages.findIndex((msg) => msg._id === message_id);
+    const targetIndex = all_messages.findIndex((msg) => msg._id === messageId);
 
     const messages =
       targetIndex !== -1
@@ -206,21 +221,13 @@ export const branchChat = mutation({
 
     for (const msg of messages) {
       await ctx.db.insert("messages", {
-        // old fields
-        author_id: msg.author_id,
-        chat_id: new_conversation_id,
-        message: msg.message,
-        isComplete: msg.isComplete,
-        error: msg.error,
-        model: msg.model,
-        // new fields
-        authorId: msg.author_id,
-        chatId: new_conversation_id,
-        modelId: msg.model,
-        hasError: msg.error,
+        chatId: newConversationId,
+        modelId: msg.modelId,
+        hasError: msg.hasError,
         errorDetail: msg.errorDetail,
-        payload: msg.message,
-        isStreaming: !msg.isComplete
+        payload: msg.payload,
+        isStreaming: msg.isStreaming,
+        ownerId: msg.ownerId,
       });
     }
   },

@@ -20,7 +20,7 @@ const coreFilePart = v.object({
 
 const coreContent = v.union(
   v.string(),
-  v.array(v.union(coreTextPart, coreImagePart, coreFilePart))
+  v.array(v.union(coreTextPart, coreImagePart, coreFilePart)),
 );
 
 const coreMessage = v.object({
@@ -28,7 +28,7 @@ const coreMessage = v.object({
     v.literal("system"),
     v.literal("user"),
     v.literal("assistant"),
-    v.literal("tool")
+    v.literal("tool"),
   ),
   content: coreContent,
 });
@@ -46,7 +46,6 @@ const scryptSyncParams = v.object({
 //   p: v.number(),
 // });
 
-
 // const modelMessage = v.object({
 //   role: v.union(
 //     v.literal("system"),
@@ -59,78 +58,69 @@ const scryptSyncParams = v.object({
 
 export default defineSchema({
   users: defineTable({
-    user_id: v.string(),
     email: v.string(),
     // new field
-    externalId: v.optional(v.string()), // currently clerk
+    externalId: v.string(), // currently clerk
   })
-  .index("by_ExternalId", ["externalId"]),
+    .index("by_ExternalId", ["externalId"])
+    .index("by_Email", ["email"]),
   chats: defineTable({
-    user_id: v.string(),
     title: v.string(),
-    // new field
-    userId: v.optional(v.id("users")),
-  }).index("by_user", ["user_id"]),
+    ownerId: v.id("users"),
+  }).index("by_ownerId", ["ownerId"]),
   files: defineTable({
     name: v.string(),
     url: v.string(),
     mimeType: v.string(),
     size: v.number(),
-    authorId: v.string(),
-    // new field
-    ownerId: v.optional(v.id("users")),
-    key: v.optional(v.string()),
-  }).index("by_author", ["authorId"]),
+    ownerId: v.id("users"),
+    key: v.string(),
+  }).index("by_ownerId", ["ownerId"]),
   messages: defineTable({
-    // Legacy fields
-    author_id: v.string(),
-    chat_id: v.id("chats"),
-    message: coreMessage,
-    isComplete: v.boolean(),
-    error: v.boolean(),
-    errorMessage: v.optional(v.string()),
-    model: v.optional(v.string()),
     // New fields
-    authorId: v.optional(v.string()),
-    chatId: v.optional(v.id("chats")),
-    modelId: v.optional(v.string()),
-    hasError: v.optional(v.boolean()),
+    chatId: v.id("chats"),
+    modelId: v.string(),
+    hasError: v.boolean(),
     errorDetail: v.optional(v.string()),
-    payload: v.optional(coreMessage),
-    isStreaming: v.optional(v.boolean()),
-
-    ownerId: v.optional(v.id("users")),
+    payload: coreMessage,
+    isStreaming: v.boolean(),
+    ownerId: v.id("users"),
   })
-    .index("by_author", ["author_id"])
-    .index("by_chat_Id", ["chat_id"])
+    .index("by_owner", ["ownerId"])
     .index("by_chatId", ["chatId"]),
   invites: defineTable({
-    recipient_email: v.string(),
-    author_email: v.string(),
-    chat_id: v.id("chats"),
-    chat_name: v.string(),
-    status: v.string(),
+    recipientUserId: v.id("users"),
+    authorUserId: v.id("users"),
+    chatId: v.id("chats"),
+    chatName: v.string(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("accepted"),
+      v.literal("rejected"),
+    ),
   })
-    .index("by_recipient_email", ["recipient_email"])
-    .index("by_chat_id", ["chat_id"]),
+    .index("by_recipientUserId", ["recipientUserId"])
+    .index("by_authorUserId", ["authorUserId"])
+    .index("by_recipientUserId_status", ["recipientUserId", "status"])
+    .index("by_chatId", ["chatId"]),
   useage: defineTable({
-    user_id: v.string(),
     messagesRemaining: v.number(),
-  }).index("by_user_id", ["user_id"]),
+    userId: v.optional(v.id("users")),
+  }).index("by_userId", ["userId"]),
   userEncryptionKeys: defineTable({
-    user_id: v.string(),
+    userId: v.id("users"),
     entropy: v.string(),
     salt: v.string(),
     version: v.string(),
-    kdf_name: v.literal('scrypt'), // add argon2 later
-    params: scryptSyncParams, // argon2 params add later
-  }).index("by_user", ["user_id"]),
+    kdf_name: v.literal("scrypt"), // add argon2 later
+    params: scryptSyncParams, // argon2 params add later,
+  }).index("by_userId", ["userId"]),
   userApiKeys: defineTable({
-    user_id: v.string(),
+    userId: v.id("users"),
     provider: v.string(),
     encryptedApiKey: v.string(),
     derivedAt: v.number(),
   })
-    .index("by_user", ["user_id"])
-    .index("by_user_provider", ["user_id", "provider"]),
+    .index("by_userId", ["userId"])
+    .index("by_user_provider", ["userId", "provider"]),
 });

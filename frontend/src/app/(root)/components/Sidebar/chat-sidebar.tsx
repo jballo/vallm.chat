@@ -123,7 +123,7 @@ export function ChatList({
   const handleLeaveChat = async (id: Id<"chats">) => {
     console.log("leaving chat...");
     await leaveSharedChat({
-      chat_id: id,
+      chatId: id,
     });
     // onChatSelect(null);
   };
@@ -346,12 +346,16 @@ export function ChatSidebar({
   activeTab,
   setActiveTab,
 }: ChatSidebarProps) {
-  const { user } = useUser();
+  const { user, isSignedIn, isLoaded } = useUser();
   const router = useRouter();
 
   const navigateToLogin = () => {
     router.push("/sign-in");
   };
+
+  useEffect(() => {
+    if (!isSignedIn || !isLoaded || !user) onChatSelect(null);
+  }, [isSignedIn, isLoaded, user]);
 
   return (
     <div

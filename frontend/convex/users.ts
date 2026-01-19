@@ -2,14 +2,12 @@ import { ConvexError, v } from "convex/values";
 import { internalMutation, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 
-
 export const initiateUser = internalMutation({
   args: {
-    externalId: v.string(), 
+    externalId: v.string(),
     email: v.string(),
   },
   handler: async (ctx, args) => {
-
     const { externalId, email } = args;
 
     const userByExternalId = await ctx.db
@@ -21,14 +19,13 @@ export const initiateUser = internalMutation({
 
     console.log(`Signing up ${externalId}: ${email}`);
 
-    await ctx.db.insert("users", {
-      user_id: externalId,
+    const userId = await ctx.db.insert("users", {
       email: email,
       externalId,
     });
 
     await ctx.db.insert("useage", {
-      user_id: externalId,
+      userId,
       messagesRemaining: 50,
     });
   },
@@ -50,20 +47,18 @@ export const upsertUser = internalMutation({
     if (userByExternalId !== null) {
       await ctx.db.patch(userByExternalId._id, { email: email });
       return;
-    } 
-    
-    await ctx.db.insert("users", {
-      user_id: externalId,
+    }
+
+    const userId = await ctx.db.insert("users", {
       email: email,
       externalId,
     });
 
     await ctx.db.insert("useage", {
-      user_id: externalId,
+      userId,
       messagesRemaining: 50,
     });
-
-  }
+  },
 });
 
 export const deleteUser = internalMutation({
@@ -78,13 +73,11 @@ export const deleteUser = internalMutation({
       .withIndex("by_ExternalId", (q) => q.eq("externalId", externalId))
       .unique();
 
-    if ( userByExternalId === null) throw new ConvexError("User not found");
-
-
+    if (userByExternalId === null) throw new ConvexError("User not found");
 
     const chats = await ctx.db
       .query("chats")
-      .withIndex("by_user", (q) => q.eq("user_id", externalId))
+      .withIndex("by_ownerId", (q) => q.eq("ownerId", userByExternalId._id))
       .collect();
 
     // go through all of user chats
@@ -101,9 +94,9 @@ export const deleteUser = internalMutation({
 
       // delete any invitations related to chat
 
-      const invitations = await ctx.db 
+      const invitations = await ctx.db
         .query("invites")
-        .withIndex("by_chat_id", (q) => q.eq("chat_id", chat._id))
+        .withIndex("by_chatId", (q) => q.eq("chatId", chat._id))
         .collect();
 
       for (const invite of invitations) {
@@ -113,14 +106,15 @@ export const deleteUser = internalMutation({
       // delete chat
       await ctx.db.delete(chat._id);
     }
-    
+
     // delete useage record
     const usageRecord = await ctx.db
       .query("useage")
-      .withIndex("by_user_id", (q) => q.eq("user_id", externalId))
+      .withIndex("by_userId", (q) => q.eq("userId", userByExternalId._id))
       .unique();
 
-    if (usageRecord === null) throw new ConvexError("Failed to find user usage record");
+    if (usageRecord === null)
+      throw new ConvexError("Failed to find user usage record");
 
     await ctx.db.delete(usageRecord._id);
 
@@ -128,19 +122,18 @@ export const deleteUser = internalMutation({
 
     const userEncryptionKeys = await ctx.db
       .query("userEncryptionKeys")
-      .withIndex("by_user", (q) => q.eq("user_id", externalId))
+      .withIndex("by_userId", (q) => q.eq("userId", userByExternalId._id))
       .collect();
-
 
     for (const key of userEncryptionKeys) {
       await ctx.db.delete(key._id);
     }
-    
+
     // delete user api keys
 
     const userApiKeys = await ctx.db
       .query("userApiKeys")
-      .withIndex("by_user", (q) => q.eq("user_id", externalId))
+      .withIndex("by_userId", (q) => q.eq("userId", userByExternalId._id))
       .collect();
 
     for (const key of userApiKeys) {
@@ -150,25 +143,26 @@ export const deleteUser = internalMutation({
     // delete file references
     const files = await ctx.db
       .query("files")
-      .withIndex("by_author", (q) => q.eq("authorId", externalId))
+      .withIndex("by_ownerId", (q) => q.eq("ownerId", userByExternalId._id))
       .collect();
 
     for (const file of files) {
       await ctx.db.delete(file._id);
 
-      if ( file.key !== undefined ) await ctx.scheduler.runAfter(0, internal.utils.files.deleteUploadThingFile, {
-          key: file.key
-        });
+      if (file.key !== undefined)
+        await ctx.scheduler.runAfter(
+          0,
+          internal.utils.files.deleteUploadThingFile,
+          {
+            key: file.key,
+          },
+        );
     }
 
     // delete user
     await ctx.db.delete(userByExternalId._id);
-
-  }
-})
-
-
-
+  },
+});
 
 export const getUsage = query({
   args: {},
@@ -178,11 +172,18 @@ export const getUsage = query({
       throw new Error("Not authenticated");
     }
 
-    const userId = identity.subject;
+    const externalId = identity.subject;
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_ExternalId", (q) => q.eq("externalId", externalId))
+      .unique();
+
+    if (user === null) throw new Error("User not found");
 
     const remainingCredits = await ctx.db
       .query("useage")
-      .withIndex("by_user_id", (q) => q.eq("user_id", userId))
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
       .unique();
 
     return remainingCredits;

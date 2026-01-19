@@ -66,23 +66,25 @@ interface MessageInputProps {
   }) => void;
   activeChat: { id: Id<"chats">; title: string } | null;
   useage:
-  | {
-    _id: Id<"useage">;
-    _creationTime: number;
-    user_id: string;
-    messagesRemaining: number;
-  }
-  | null
-  | undefined;
+    | 
+      {
+        _id: Id<"useage">;
+        _creationTime: number;
+        userId?: Id<"users"> | undefined;
+        messagesRemaining: number;
+      } 
+    | null 
+    | undefined;
   getAllApiKeys:
-  | {
-    _id: Id<"userApiKeys">;
-    _creationTime: number;
-    user_id: string;
-    provider: string;
-    encryptedApiKey: string;
-  }[]
-  | undefined;
+    | {
+        _id: Id<"userApiKeys">;
+        _creationTime: number;
+        userId?: Id<"users"> | undefined;
+        provider: string;
+        encryptedApiKey: string;
+        derivedAt: number;
+        }[] 
+    | undefined;
   messageLoading: boolean;
   setMessageLoading: (val: boolean) => void;
   complete: (prompt: string, options?: CompletionRequestOptions) => Promise<string | null | undefined>
@@ -109,7 +111,7 @@ export default function MessageInput({
     return activeChat ? { conversationId: activeChat.id } : "skip";
   }, [activeChat]);
 
-  const messages = useQuery(api.messages.getMessages, queryVariables) || [];
+  const messages = useQuery(api.messages.getMessages, !user || !isLoaded || !isSignedIn ? "skip" : queryVariables) || [];
 
   const [message, setMessage] = useState("");
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
@@ -239,14 +241,14 @@ export default function MessageInput({
     }
 
     await saveUserMessage({
-      chat_id: chat_id,
+      chatId: chat_id,
       userMessage: latestMessage,
-      model: selectedModel.id,
+      modelId: selectedModel.id,
     });
 
     const messageId = await initateAssistantMessage({
-      chat_id: chat_id,
-      model: selectedModel.id,
+      chatId: chat_id,
+      modelId: selectedModel.id,
     });
 
     await updateUseage({
@@ -291,10 +293,10 @@ export default function MessageInput({
       const oldHistory: ModelMessage[] = [];
 
       messages.map((m) => {
-        if (m.message) {
+        if (m.payload) {
           oldHistory.push({
-            role: m.message.role,
-            content: m.message.content,
+            role: m.payload.role,
+            content: m.payload.content,
           });
         }
       });
@@ -310,10 +312,10 @@ export default function MessageInput({
       const oldHistory: ModelMessage[] = [];
 
       messages.map((m) => {
-        if (m.message) {
+        if (m.payload) {
           oldHistory.push({
-            role: m.message.role,
-            content: m.message.content,
+            role: m.payload.role,
+            content: m.payload.content,
           });
         }
       });

@@ -1,10 +1,12 @@
-import { Migrations } from "@convex-dev/migrations";
-import { components, internal } from "./_generated/api.js";
-import { DataModel, Doc } from "./_generated/dataModel.js";
+// import { Migrations } from "@convex-dev/migrations";
+// import { components, internal } from "./_generated/api.js";
+// import { DataModel, Doc } from "./_generated/dataModel.js";
 
-export const migrations = new Migrations<DataModel>(components.migrations);
-export const run = migrations.runner();
+// export const migrations = new Migrations<DataModel>(components.migrations);
+// export const run = migrations.runner();
 
+// examples of migrations for prior schema
+/*
 export const setMessageUpdatedColumnNames = migrations.define({
     table: "messages",
     migrateOne: async (ctx, doc) => {
@@ -44,5 +46,6 @@ export const defineFileKeyInFilesTable = migrations.define({
         }
     },
 });
+*/
 
-export const runIt = migrations.runner(internal.migrations.defineFileKeyInFilesTable);
+// export const runIt = migrations.runner(internal.migrations.defineFileKeyInFilesTable);

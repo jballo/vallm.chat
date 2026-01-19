@@ -30,7 +30,7 @@ import { Card, CardContent, CardFooter, CardHeader } from "@/atoms/card";
 import { InvitationList } from "./invitation-list";
 import { SignInButton, SignOutButton } from "@clerk/nextjs";
 import { api } from "../../../../../../convex/_generated/api";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
 import { Id } from "../../../../../../convex/_generated/dataModel";
 
@@ -38,14 +38,15 @@ interface ChatMainHeaderProps {
   activeTab: "myChats" | "shared";
   activeChat: { id: Id<"chats">; title: string } | null;
   useage:
-    | {
+    | 
+      {
         _id: Id<"useage">;
         _creationTime: number;
-        user_id: string;
+        userId?: Id<"users"> | undefined;
         messagesRemaining: number;
-      }
-    | null
-    | undefined;
+      } 
+    | null 
+    | undefined
 }
 
 export default function ChatMainHeader({
@@ -57,15 +58,19 @@ export default function ChatMainHeader({
   const [email, setEmail] = useState<string>("");
   const createInvitation = useMutation(api.sharing.createInvitation);
 
+  useEffect(() => {
+    console.log("activeChat: ", activeChat);
+  }, [activeChat]);
+
   const shareChat = async () => {
     if (!email || email.length < 1) return;
 
     if (!activeChat) return;
 
     await createInvitation({
-      recipient_email: email,
-      chat_id: activeChat.id,
-      chat_name: activeChat.title,
+      chatId: activeChat.id,
+      chatName: activeChat.title,
+      recipientEmail: email, 
     });
     setEmail("");
   };

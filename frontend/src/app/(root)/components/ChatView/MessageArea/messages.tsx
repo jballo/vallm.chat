@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef } from "react";
-import { Id } from "../../../../../../convex/_generated/dataModel";
+import { useMemo } from "react";
+import { Doc, Id } from "../../../../../../convex/_generated/dataModel";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../../../../convex/_generated/api";
 import { MessageRenderer } from "./MessageRenderer";
@@ -7,29 +7,23 @@ import { Button } from "@/atoms/button";
 import { GitBranch, Paperclip, RefreshCcw } from "lucide-react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
+import { useUser } from "@clerk/nextjs";
 
 
 interface ChatMessagesProps {
   activeChat: { id: Id<"chats">; title: string } | null;
   activeTab: "myChats" | "shared";
-  useage:
-  | {
-    _id: Id<"useage">;
-    _creationTime: number;
-    user_id: string;
-    messagesRemaining: number;
-  }
-  | null
-  | undefined;
+  useage: Doc<"useage"> | null | undefined;
   allAvailableApiKeys:
-  | {
-    _id: Id<"userApiKeys">;
-    _creationTime: number;
-    user_id: string;
-    provider: string;
-    encryptedApiKey: string;
-  }[]
-  | undefined;
+    | {
+      _id: Id<"userApiKeys">;
+      _creationTime: number;
+      userId?: Id<"users"> | undefined;
+      provider: string;
+      encryptedApiKey: string;
+      derivedAt: number;
+      }[] 
+    | undefined;
   streamedMessage: string;
 }
 
@@ -40,7 +34,7 @@ export function ChatMessages({
   // allAvailableApiKeys,
   streamedMessage,
 }: ChatMessagesProps) {
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { user, isLoaded, isSignedIn } = useUser();
   const branchChat = useMutation(api.chat.branchChat);
   // const regenerateResponse = useMutation(api.messages.regnerateResponse);
 
@@ -49,33 +43,20 @@ export function ChatMessages({
     return activeChat ? { conversationId: activeChat.id } : "skip";
   }, [activeChat]);
 
-  const messages = useQuery(api.messages.getMessages, queryVariables) || [];
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({
-      behavior: "smooth", // Change from "smooth" to "auto" to prevent scroll animation conflicts
-      block: "end",
-    });
-  };
+  const messages = useQuery(api.messages.getMessages, !user || !isLoaded || !isSignedIn ? "skip" : queryVariables)  ?? [];
 
-  const recentMessage = messages[messages.length - 1];
+
+  const recentMessage = messages.length > 0 ? messages[messages.length - 1] : undefined;
   const recentMessageLoaded = recentMessage !== undefined && recentMessage.isStreaming === true;
-
-
-  useEffect(() => {
-    // Use requestAnimationFrame to ensure DOM is updated
-    requestAnimationFrame(() => {
-      scrollToBottom();
-    });
-  }, [messages, streamedMessage]);
 
 
   const onBranchChat = async (message_id: Id<"messages">) => {
     if (!activeChat) return;
     await branchChat({
       title: activeChat.title,
-      conversation_id: activeChat.id,
-      message_id: message_id,
+      conversationId: activeChat.id,
+      messageId: message_id,
     });
   };
 
@@ -87,12 +68,12 @@ export function ChatMessages({
           "hidden": msg.isStreaming,
         })}>
           <div className={cn(`flex flex-col group`, {
-            'justify-start': msg.message.role === "assistant",
-            "items-end": msg.message.role === "user",
+            'justify-start': msg.payload.role === "assistant",
+            "items-end": msg.payload.role === "user",
           })}>
             <div className={cn(`max-w-[80%] rounded-2xl rounded-br-md px-4 py-3`, {
-              'bg-muted': msg.message.role === "assistant",
-              'bg-primary text-primary-foreground': msg.message.role === "user"
+              'bg-muted': msg.payload.role === "assistant",
+              'bg-primary text-primary-foreground': msg.payload.role === "user"
             })}>
               {msg.isStreaming ? (
                 <div className="flex space-x-5 justify-center p-4">
@@ -101,13 +82,13 @@ export function ChatMessages({
                   <div className="h-2 w-2 bg-primary rounded-full animate-bounce [animation-delay:-0.15s]"></div>
                   <div className="h-2 w-2 bg-primary rounded-full animate-bounce"></div>
                 </div>
-              ) : Array.isArray(msg.message.content) ? (
+              ) : Array.isArray(msg.payload.content) ? (
                 <>
-                  {msg.message.content[0].type === "text" && (
-                    <MessageRenderer content={msg.message.content[0].text} />
+                  {msg.payload.content[0].type === "text" && (
+                    <MessageRenderer content={msg.payload.content[0].text} />
                   )}
                   <div className="flex flex-row gap-2 mt-2">
-                    {msg.message.content.slice(1).map((item, index) => {
+                    {msg.payload.content.slice(1).map((item, index) => {
                       if (item.type === "image") {
                         return (
                           <Image
@@ -134,12 +115,12 @@ export function ChatMessages({
                   </div>
                 </>
               ) : (
-                <MessageRenderer content={msg.message.content} />
+                <MessageRenderer content={msg.payload.content} />
               )}
             </div>
             <div className="flex flex-row gap-2 p-2 items-center">
               <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-row items-center gap-2">
-                {msg.message.role === "assistant" && activeTab === "myChats" && (
+                {msg.payload.role === "assistant" && activeTab === "myChats" && (
                   <Button
                     variant="ghost"
                     size="icon"
@@ -157,7 +138,7 @@ export function ChatMessages({
                 >
                   <RefreshCcw className="h-3 w-3" />
                 </Button>
-                <p className="text-xs">{msg.model}</p>
+                <p className="text-xs">{msg.modelId}</p>
               </div>
             </div>
           </div>

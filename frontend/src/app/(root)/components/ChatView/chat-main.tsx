@@ -46,12 +46,6 @@ export function ChatView({
   const { user, isLoaded, isSignedIn } = useUser();
   const [messageLoading, setMessageLoading] = useState<boolean>(false);
 
-  // const queryVariables = useMemo(() => {
-  //   return activeChat ? { conversationId: activeChat.id } : "skip";
-  // }, [activeChat]);
-
-  // const messages = useQuery(api.messages.getMessages, queryVariables) || [];
-
   const useage = useQuery(
     api.users.getUsage,
     !user || !isLoaded || !isSignedIn ? "skip" : {}

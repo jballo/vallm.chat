@@ -3,14 +3,15 @@ import { Id } from "../../../../../../convex/_generated/dataModel";
 
 interface CreditCountProps {
   useage:
-    | {
+    | 
+      {
         _id: Id<"useage">;
         _creationTime: number;
-        user_id: string;
+        userId?: Id<"users"> | undefined;
         messagesRemaining: number;
-      }
-    | null
-    | undefined;
+      } 
+    | null 
+    | undefined
 }
 
 export default function CreditCount({ useage }: CreditCountProps) {

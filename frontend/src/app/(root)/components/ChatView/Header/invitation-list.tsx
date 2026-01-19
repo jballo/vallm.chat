@@ -16,8 +16,8 @@ export function InvitationList() {
             key={invitation._id}
             className="flex flex-col gap-2 p-3 border border-[#2a2a2a] rounded-xl mb-2"
           >
-            <p className="text-base font-bold">{invitation.chat_name}</p>
-            <p className="text-sm">{invitation.author_email} shared a chat.</p>
+            <p className="text-base font-bold">{invitation.chatName}</p>
+            <p className="text-sm">{invitation.authorEmail} shared a chat.</p>
             <div className="flex flex-row items-center justify-between">
               <p className="text-sm">
                 {new Date(invitation._creationTime).toLocaleDateString()}
@@ -27,14 +27,14 @@ export function InvitationList() {
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8 rounded-xl"
-                  onClick={() => denyInvite({ invitation_id: invitation._id })}
+                  onClick={() => denyInvite({ invitationId: invitation._id })}
                 >
                   <XIcon className="h-4 w-4" />
                 </Button>
                 <Button
                   className="rounded-xl px-3 py-1 text-sm"
                   onClick={() =>
-                    acceptInvite({ invitation_id: invitation._id })
+                    acceptInvite({ invitationId: invitation._id })
                   }
                 >
                   <Check className="h-4 w-4 mr-1" /> Accept
