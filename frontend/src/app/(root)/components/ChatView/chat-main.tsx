@@ -46,7 +46,7 @@ export function ChatView({
   const { user, isLoaded, isSignedIn } = useUser();
   const [messageLoading, setMessageLoading] = useState<boolean>(false);
 
-  const useage = useQuery(
+  const usage = useQuery(
     api.users.getUsage,
     !user || !isLoaded || !isSignedIn ? "skip" : {}
   );
@@ -81,13 +81,12 @@ export function ChatView({
       <ChatMainHeader
         activeTab={activeTab}
         activeChat={activeChat}
-        useage={useage}
+        usage={usage}
       />
 
       {/* Chat messages */}
       <MessageArea
         activeChat={activeChat}
-        useage={useage}
         getAllApiKeys={getAllApiKeys}
         activeTab={activeTab}
         streamedMessage={temp}
@@ -98,7 +97,7 @@ export function ChatView({
         selectedModel={selectedModel}
         setSelectedModel={setSelectedModel}
         activeChat={activeChat}
-        useage={useage}
+        usage={usage}
         getAllApiKeys={getAllApiKeys}
         messageLoading={messageLoading}
         setMessageLoading={setMessageLoading}

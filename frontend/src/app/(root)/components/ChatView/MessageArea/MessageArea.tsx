@@ -4,11 +4,10 @@ import { Authenticated, Unauthenticated } from "convex/react";
 import { ChatMessages } from "./messages";
 import { Button } from "@/atoms/button";
 import { BookOpen, Code, HighlighterIcon, Sparkles } from "lucide-react";
-import { Doc, Id } from "../../../../../../convex/_generated/dataModel";
+import { Id } from "../../../../../../convex/_generated/dataModel";
 
 interface MessageAreaProps {
   activeChat: { id: Id<"chats">; title: string } | null;
-  useage: Doc<"useage"> | null | undefined;
   getAllApiKeys:
     | {
       _id: Id<"userApiKeys">;
@@ -25,7 +24,6 @@ interface MessageAreaProps {
 
 export default function MessageArea({
   activeChat,
-  useage,
   getAllApiKeys,
   activeTab,
   streamedMessage,
@@ -37,7 +35,6 @@ export default function MessageArea({
           <ChatMessages
             activeChat={activeChat}
             activeTab={activeTab}
-            useage={useage}
             allAvailableApiKeys={getAllApiKeys}
             streamedMessage={streamedMessage}
           />

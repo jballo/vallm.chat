@@ -24,7 +24,7 @@ export const initiateUser = internalMutation({
       externalId,
     });
 
-    await ctx.db.insert("useage", {
+    await ctx.db.insert("usage", {
       userId,
       messagesRemaining: 50,
     });
@@ -54,7 +54,7 @@ export const upsertUser = internalMutation({
       externalId,
     });
 
-    await ctx.db.insert("useage", {
+    await ctx.db.insert("usage", {
       userId,
       messagesRemaining: 50,
     });
@@ -109,7 +109,7 @@ export const deleteUser = internalMutation({
 
     // delete useage record
     const usageRecord = await ctx.db
-      .query("useage")
+      .query("usage")
       .withIndex("by_userId", (q) => q.eq("userId", userByExternalId._id))
       .unique();
 
@@ -182,7 +182,7 @@ export const getUsage = query({
     if (user === null) throw new Error("User not found");
 
     const remainingCredits = await ctx.db
-      .query("useage")
+      .query("usage")
       .withIndex("by_userId", (q) => q.eq("userId", user._id))
       .unique();
 
@@ -192,15 +192,15 @@ export const getUsage = query({
 
 export const updateUseage = mutation({
   args: {
-    useageId: v.id("useage"),
+    usageId: v.id("usage"),
     credits: v.number(),
   },
   handler: async (ctx, args) => {
     const idenity = await ctx.auth.getUserIdentity();
     if (!idenity) throw new Error("Not authenticated!");
 
-    const { useageId, credits } = args;
+    const { usageId, credits } = args;
 
-    await ctx.db.patch(useageId, { messagesRemaining: credits });
+    await ctx.db.patch(usageId, { messagesRemaining: credits });
   },
 });

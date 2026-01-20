@@ -1,6 +1,6 @@
 // import { Migrations } from "@convex-dev/migrations";
 // import { components, internal } from "./_generated/api.js";
-// import { DataModel, Doc } from "./_generated/dataModel.js";
+// import { DataModel } from "./_generated/dataModel.js";
 
 // export const migrations = new Migrations<DataModel>(components.migrations);
 // export const run = migrations.runner();
@@ -48,4 +48,14 @@ export const defineFileKeyInFilesTable = migrations.define({
 });
 */
 
-// export const runIt = migrations.runner(internal.migrations.defineFileKeyInFilesTable);
+// export const fixUsageTableName = migrations.define({
+//     table: "useage",
+//     migrateOne: async (ctx, doc) => {
+//         await ctx.db.insert("usage", {
+//             userId: doc.userId,
+//             messagesRemaining: doc.messagesRemaining,
+//         });
+//     },
+// })
+
+// export const runIt = migrations.runner(internal.migrations.fixUsageTableName);

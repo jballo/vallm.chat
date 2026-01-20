@@ -30,20 +30,20 @@ import { Card, CardContent, CardFooter, CardHeader } from "@/atoms/card";
 import { InvitationList } from "./invitation-list";
 import { SignInButton, SignOutButton } from "@clerk/nextjs";
 import { api } from "../../../../../../convex/_generated/api";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useTheme } from "next-themes";
 import { Id } from "../../../../../../convex/_generated/dataModel";
 
 interface ChatMainHeaderProps {
   activeTab: "myChats" | "shared";
   activeChat: { id: Id<"chats">; title: string } | null;
-  useage:
+  usage:
     | 
       {
-        _id: Id<"useage">;
+        _id: Id<"usage">;
         _creationTime: number;
-        userId?: Id<"users"> | undefined;
         messagesRemaining: number;
+        userId: Id<"users">;
       } 
     | null 
     | undefined
@@ -52,15 +52,11 @@ interface ChatMainHeaderProps {
 export default function ChatMainHeader({
   activeTab,
   activeChat,
-  useage,
+  usage,
 }: ChatMainHeaderProps) {
   const { theme, setTheme } = useTheme();
   const [email, setEmail] = useState<string>("");
   const createInvitation = useMutation(api.sharing.createInvitation);
-
-  useEffect(() => {
-    console.log("activeChat: ", activeChat);
-  }, [activeChat]);
 
   const shareChat = async () => {
     if (!email || email.length < 1) return;
@@ -89,7 +85,7 @@ export default function ChatMainHeader({
       </div>
       <div className="flex items-center gap-2">
         <Authenticated>
-          <CreditCount useage={useage} />
+          <CreditCount usage={usage} />
           {activeChat && activeTab === "myChats" && (
             <>
               {/* <Button

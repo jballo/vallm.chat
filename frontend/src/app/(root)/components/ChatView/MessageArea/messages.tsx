@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Doc, Id } from "../../../../../../convex/_generated/dataModel";
+import { Id } from "../../../../../../convex/_generated/dataModel";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../../../../convex/_generated/api";
 import { MessageRenderer } from "./MessageRenderer";
@@ -13,7 +13,6 @@ import { useUser } from "@clerk/nextjs";
 interface ChatMessagesProps {
   activeChat: { id: Id<"chats">; title: string } | null;
   activeTab: "myChats" | "shared";
-  useage: Doc<"useage"> | null | undefined;
   allAvailableApiKeys:
     | {
       _id: Id<"userApiKeys">;

@@ -65,13 +65,13 @@ interface MessageInputProps {
     capabilities: string[];
   }) => void;
   activeChat: { id: Id<"chats">; title: string } | null;
-  useage:
+  usage:
     | 
       {
-        _id: Id<"useage">;
+        _id: Id<"usage">;
         _creationTime: number;
-        userId?: Id<"users"> | undefined;
         messagesRemaining: number;
+        userId: Id<"users">;
       } 
     | null 
     | undefined;
@@ -79,7 +79,7 @@ interface MessageInputProps {
     | {
         _id: Id<"userApiKeys">;
         _creationTime: number;
-        userId?: Id<"users"> | undefined;
+        userId: Id<"users">;
         provider: string;
         encryptedApiKey: string;
         derivedAt: number;
@@ -96,7 +96,7 @@ export default function MessageInput({
   selectedModel,
   setSelectedModel,
   activeChat,
-  useage,
+  usage,
   getAllApiKeys,
   messageLoading,
   setMessageLoading,
@@ -154,7 +154,7 @@ export default function MessageInput({
 
     if (isLoading || !isAuthenticated) return;
 
-    if (useage === null || useage === undefined || useage.messagesRemaining < 1)
+    if (usage === null || usage === undefined || usage.messagesRemaining < 1)
       return;
 
     const encryptedApiKey = getAllApiKeys.find(
@@ -252,8 +252,8 @@ export default function MessageInput({
     });
 
     await updateUseage({
-      useageId: useage._id,
-      credits: useage.messagesRemaining - 1,
+      usageId: usage._id,
+      credits: usage.messagesRemaining - 1,
     });
 
     let newHistory: ModelMessage[] = [];

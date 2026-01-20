@@ -2,24 +2,24 @@ import { Authenticated } from "convex/react";
 import { Id } from "../../../../../../convex/_generated/dataModel";
 
 interface CreditCountProps {
-  useage:
+  usage:
     | 
       {
-        _id: Id<"useage">;
+        _id: Id<"usage">;
         _creationTime: number;
-        userId?: Id<"users"> | undefined;
         messagesRemaining: number;
+        userId: Id<"users">;
       } 
     | null 
     | undefined
 }
 
-export default function CreditCount({ useage }: CreditCountProps) {
+export default function CreditCount({ usage }: CreditCountProps) {
   return (
     <Authenticated>
-      {useage ? (
+      {usage ? (
         <div className="flex flex-row border-2 rounded-2xl p-2 text-[12px]">
-          Credit Remaining: {useage.messagesRemaining}
+          Credit Remaining: {usage.messagesRemaining}
         </div>
       ) : (
         <div className="flex flex-row border-2 rounded-2xl p-2 text-[12px]">

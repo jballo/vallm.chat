@@ -103,9 +103,9 @@ export default defineSchema({
     .index("by_authorUserId", ["authorUserId"])
     .index("by_recipientUserId_status", ["recipientUserId", "status"])
     .index("by_chatId", ["chatId"]),
-  useage: defineTable({
+  usage: defineTable({
     messagesRemaining: v.number(),
-    userId: v.optional(v.id("users")),
+    userId: v.id("users"),
   }).index("by_userId", ["userId"]),
   userEncryptionKeys: defineTable({
     userId: v.id("users"),
