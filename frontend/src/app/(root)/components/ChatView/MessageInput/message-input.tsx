@@ -118,9 +118,9 @@ export default function MessageInput({
 
   const uploadImages = useMutation(api.files.uploadImages);
   const saveUserMessage = useMutation(api.messages.saveUserMessage);
+  const updateUsage = useMutation(api.users.updateUsage);
   const initateAssistantMessage = useMutation(api.messages.initiateMessage);
-  const updateUseage = useMutation(api.users.updateUseage);
-
+  
   // const { completion, complete } = useCompletion({
   //   api: '/api/completion',
   // });
@@ -251,7 +251,7 @@ export default function MessageInput({
       modelId: selectedModel.id,
     });
 
-    await updateUseage({
+    await updateUsage({
       usageId: usage._id,
       credits: usage.messagesRemaining - 1,
     });

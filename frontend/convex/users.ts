@@ -2,35 +2,6 @@ import { ConvexError, v } from "convex/values";
 import { internalMutation, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 
-export const initiateUser = internalMutation({
-  args: {
-    externalId: v.string(),
-    email: v.string(),
-  },
-  handler: async (ctx, args) => {
-    const { externalId, email } = args;
-
-    const userByExternalId = await ctx.db
-      .query("users")
-      .withIndex("by_ExternalId", (q) => q.eq("externalId", externalId))
-      .unique();
-
-    if (userByExternalId !== null) throw new ConvexError("User already exists");
-
-    console.log(`Signing up ${externalId}: ${email}`);
-
-    const userId = await ctx.db.insert("users", {
-      email: email,
-      externalId,
-    });
-
-    await ctx.db.insert("usage", {
-      userId,
-      messagesRemaining: 50,
-    });
-  },
-});
-
 export const upsertUser = internalMutation({
   args: {
     externalId: v.string(),
@@ -92,7 +63,7 @@ export const deleteUser = internalMutation({
         await ctx.db.delete(msg._id);
       }
 
-      // delete any invitations related to chat
+      // delete any invitations related to chat for which the user is the owner of
 
       const invitations = await ctx.db
         .query("invites")
@@ -107,7 +78,18 @@ export const deleteUser = internalMutation({
       await ctx.db.delete(chat._id);
     }
 
-    // delete useage record
+    // collect any invitation sent to this user
+    const invitations = await ctx.db
+      .query("invites")
+      .withIndex("by_recipientUserId", (q) => q.eq("recipientUserId", userByExternalId._id))
+      .collect();
+
+    // delete any invitation sent to this user
+    for (const invite of invitations) {
+      await ctx.db.delete(invite._id);
+    }
+
+    // delete usage record
     const usageRecord = await ctx.db
       .query("usage")
       .withIndex("by_userId", (q) => q.eq("userId", userByExternalId._id))
@@ -190,14 +172,14 @@ export const getUsage = query({
   },
 });
 
-export const updateUseage = mutation({
+export const updateUsage = mutation({
   args: {
     usageId: v.id("usage"),
     credits: v.number(),
   },
   handler: async (ctx, args) => {
-    const idenity = await ctx.auth.getUserIdentity();
-    if (!idenity) throw new Error("Not authenticated!");
+    const identity = await ctx.auth.getUserIdentity();
+    if (identity === null) throw new Error("Not authenticated!");
 
     const { usageId, credits } = args;
 

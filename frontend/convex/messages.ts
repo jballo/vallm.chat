@@ -71,6 +71,32 @@ export const getMessages = query({
     if (identity === null) throw new Error("Not authenticated");
     const { conversationId } = args;
 
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_ExternalId", (q) => q.eq("externalId", identity.subject))
+      .unique();
+
+    if (user === null) throw new Error("User not found");
+
+    const conversation = await ctx.db.get(conversationId);
+    if (conversation === null) throw new Error("Conversation not found");
+
+    const ownerId = conversation.ownerId;
+
+    const acceptedInvitations = await ctx.db
+      .query("invites")
+      .withIndex("by_chatId", (q) => q.eq("chatId", conversationId))
+      .filter(q => q.eq(q.field("status"), "accepted"))
+      .collect();
+
+    const acceptedInviteeIds = acceptedInvitations.map(invitation => {
+      return invitation.recipientUserId
+    });
+
+    const authorizedUsers = [ownerId, ...acceptedInviteeIds];
+
+    if(!authorizedUsers.includes(user._id)) throw new Error("User not authorized");
+
     const messages = await ctx.db
       .query("messages")
       .withIndex("by_chatId", (q) => q.eq("chatId", conversationId))

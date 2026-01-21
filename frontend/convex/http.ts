@@ -33,7 +33,6 @@ http.route({
           });
           break;
         }
-        // case "user.updated":
         case "user.deleted": {
           const userId: string | undefined = event.data.id;
 
@@ -49,7 +48,7 @@ http.route({
           console.log("Ignored Clerk webhook event", event.type);
       }
 
-      return new Response("Succesful user event", { status: 200 });
+      return new Response("Successful user event", { status: 200 });
     } catch (error) {
       const convexError = error instanceof ConvexError;
 
