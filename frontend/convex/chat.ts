@@ -108,12 +108,39 @@ export const hybridSaveChat = mutation({
       title,
     });
 
-  
     const chatCreated = await ctx.db.get(chatId);
 
     if (chatCreated === null) throw new Error("Failed to create chat");
 
     return chatId;
+  },
+});
+
+export const chatExists = query({
+  args: {
+    chatId: v.id("chats"),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+
+    if (identity === null) throw new Error("Not authenticated");
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_ExternalId", (q) => q.eq("externalId", identity.subject))
+      .unique();
+
+    if (user === null) throw new Error("Failed to find user");
+
+    const { chatId } = args;
+
+    const chat = await ctx.db.get(chatId);
+
+    console.log("chat: ", chat);
+
+    if (chat === null) return false;
+
+    return true;
   },
 });
 
@@ -137,8 +164,6 @@ export const getChats = query({
       .withIndex("by_ownerId", (q) => q.eq("ownerId", user._id))
       .order("desc")
       .collect();
-
-    console.log("Chats: ", optimalChats);
 
     return optimalChats;
   },
@@ -190,7 +215,7 @@ export const branchChat = mutation({
     if (identity === null) {
       throw new Error("Not authenticated");
     }
-    
+
     const user = await ctx.db
       .query("users")
       .withIndex("by_ExternalId", (q) => q.eq("externalId", identity.subject))

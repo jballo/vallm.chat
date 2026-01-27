@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChatSidebar } from "./components/Sidebar/chat-sidebar";
 import { Id } from "../../../convex/_generated/dataModel";
 import { ChatView } from "./components/ChatView/chat-main";
@@ -27,9 +27,6 @@ export default function Home() {
     title: string;
   } | null>(null);
   const [activeTab, setActiveTab] = useState<"myChats" | "shared">("myChats");
-
-
-  
 
   return (
     <div className="flex w-full h-screen">

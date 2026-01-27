@@ -108,7 +108,7 @@ export const getAcceptedChats = query({
     const invites = await ctx.db
       .query("invites")
       .withIndex("by_recipientUserId_status", (q) =>
-        q.eq("recipientUserId", recipient._id).eq("status", "pending"),
+        q.eq("recipientUserId", recipient._id).eq("status", "accepted"),
       )
       .collect();
 

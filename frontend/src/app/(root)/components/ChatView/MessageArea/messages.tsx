@@ -9,19 +9,18 @@ import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { useUser } from "@clerk/nextjs";
 
-
 interface ChatMessagesProps {
   activeChat: { id: Id<"chats">; title: string } | null;
   activeTab: "myChats" | "shared";
   allAvailableApiKeys:
     | {
-      _id: Id<"userApiKeys">;
-      _creationTime: number;
-      userId?: Id<"users"> | undefined;
-      provider: string;
-      encryptedApiKey: string;
-      derivedAt: number;
-      }[] 
+        _id: Id<"userApiKeys">;
+        _creationTime: number;
+        userId?: Id<"users"> | undefined;
+        provider: string;
+        encryptedApiKey: string;
+        derivedAt: number;
+      }[]
     | undefined;
   streamedMessage: string;
 }
@@ -37,18 +36,20 @@ export function ChatMessages({
   const branchChat = useMutation(api.chat.branchChat);
   // const regenerateResponse = useMutation(api.messages.regnerateResponse);
 
-
   const queryVariables = useMemo(() => {
-    return activeChat ? { conversationId: activeChat.id } : "skip";
-  }, [activeChat]);
+    const authenticated = user && isLoaded && isSignedIn;
+    if (!authenticated) return "skip";
+    if (activeChat === null) return "skip";
 
+    return { chatId: activeChat.id };
+  }, [activeChat, user, isLoaded, isSignedIn]);
 
-  const messages = useQuery(api.messages.getMessages, !user || !isLoaded || !isSignedIn ? "skip" : queryVariables)  ?? [];
+  const messages = useQuery(api.messages.getMessages, queryVariables) ?? [];
 
-
-  const recentMessage = messages.length > 0 ? messages[messages.length - 1] : undefined;
-  const recentMessageLoaded = recentMessage !== undefined && recentMessage.isStreaming === true;
-
+  const recentMessage =
+    messages.length > 0 ? messages[messages.length - 1] : undefined;
+  const recentMessageLoaded =
+    recentMessage !== undefined && recentMessage.isStreaming === true;
 
   const onBranchChat = async (message_id: Id<"messages">) => {
     if (!activeChat) return;
@@ -59,21 +60,28 @@ export function ChatMessages({
     });
   };
 
-
   const renderedMessagesOptimal = useMemo(
     () =>
       messages.map((msg) => (
-        <div key={msg._id} className={cn(`mb-8`, {
-          "hidden": msg.isStreaming,
-        })}>
-          <div className={cn(`flex flex-col group`, {
-            'justify-start': msg.payload.role === "assistant",
-            "items-end": msg.payload.role === "user",
-          })}>
-            <div className={cn(`max-w-[80%] rounded-2xl rounded-br-md px-4 py-3`, {
-              'bg-muted': msg.payload.role === "assistant",
-              'bg-primary text-primary-foreground': msg.payload.role === "user"
-            })}>
+        <div
+          key={msg._id}
+          className={cn(`mb-8`, {
+            hidden: msg.isStreaming,
+          })}
+        >
+          <div
+            className={cn(`flex flex-col group`, {
+              "justify-start": msg.payload.role === "assistant",
+              "items-end": msg.payload.role === "user",
+            })}
+          >
+            <div
+              className={cn(`max-w-[80%] rounded-2xl rounded-br-md px-4 py-3`, {
+                "bg-muted": msg.payload.role === "assistant",
+                "bg-primary text-primary-foreground":
+                  msg.payload.role === "user",
+              })}
+            >
               {msg.isStreaming ? (
                 <div className="flex space-x-5 justify-center p-4">
                   <span className="sr-only">Loading...</span>
@@ -119,21 +127,22 @@ export function ChatMessages({
             </div>
             <div className="flex flex-row gap-2 p-2 items-center">
               <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-row items-center gap-2">
-                {msg.payload.role === "assistant" && activeTab === "myChats" && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-9 w-9 text-gray-400 hover:text-white hover:bg-[#2a2a2a] rounded-xl transition-colors duration-200"
-                    onClick={() => onBranchChat(msg._id)}
-                  >
-                    <GitBranch className="h-3 w-3" />
-                  </Button>
-                )}
+                {msg.payload.role === "assistant" &&
+                  activeTab === "myChats" && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-9 w-9 text-gray-400 hover:text-white hover:bg-[#2a2a2a] rounded-xl transition-colors duration-200"
+                      onClick={() => onBranchChat(msg._id)}
+                    >
+                      <GitBranch className="h-3 w-3" />
+                    </Button>
+                  )}
                 <Button
                   variant="ghost"
                   size="icon"
                   className="h-9 w-9 text-gray-400 hover:text-white hover:bg-[#2a2a2a] rounded-xl transition-colors duration-200"
-                // onClick={() => regenerateMessage(msg)}
+                  // onClick={() => regenerateMessage(msg)}
                 >
                   <RefreshCcw className="h-3 w-3" />
                 </Button>
@@ -143,29 +152,38 @@ export function ChatMessages({
           </div>
         </div>
       )),
-    [messages, recentMessageLoaded, activeTab]
+    [messages, recentMessageLoaded, activeTab],
   );
 
-  const streamedOptimal = useMemo(() => (<div className={cn(`flex flex-col group justify-start`, {
-  })}>
-    <div className={cn(`max-w-[80%] rounded-2xl rounded-br-md px-4 py-3 bg-muted`)}>
-      {streamedMessage.length < 1 ? (<div className="flex space-x-5 justify-center p-4">
-        <span className="sr-only">Loading...</span>
-        <div className="h-2 w-2 bg-primary rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-        <div className="h-2 w-2 bg-primary rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-        <div className="h-2 w-2 bg-primary rounded-full animate-bounce"></div>
-      </div>) : (
-        <MessageRenderer content={streamedMessage} />
-      )}
-    </div>
-  </div>), [streamedMessage]);
-
+  const streamedOptimal = useMemo(
+    () => (
+      <div className={cn(`flex flex-col group justify-start`, {})}>
+        <div
+          className={cn(
+            `max-w-[80%] rounded-2xl rounded-br-md px-4 py-3 bg-muted`,
+          )}
+        >
+          {streamedMessage.length < 1 ? (
+            <div className="flex space-x-5 justify-center p-4">
+              <span className="sr-only">Loading...</span>
+              <div className="h-2 w-2 bg-primary rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+              <div className="h-2 w-2 bg-primary rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+              <div className="h-2 w-2 bg-primary rounded-full animate-bounce"></div>
+            </div>
+          ) : (
+            <MessageRenderer content={streamedMessage} />
+          )}
+        </div>
+      </div>
+    ),
+    [streamedMessage],
+  );
 
   return (
     <div className="flex-1 overflow-y-auto p-6">
       <div className="max-w-4xl mx-auto">
         {renderedMessagesOptimal}
-        {(recentMessageLoaded) && (streamedOptimal)}
+        {recentMessageLoaded && streamedOptimal}
       </div>
     </div>
   );
