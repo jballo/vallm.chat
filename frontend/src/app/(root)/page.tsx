@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ChatSidebar } from "./components/Sidebar/chat-sidebar";
 import { Id } from "../../../convex/_generated/dataModel";
 import { ChatView } from "./components/ChatView/chat-main";
