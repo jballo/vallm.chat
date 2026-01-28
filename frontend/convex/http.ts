@@ -50,9 +50,15 @@ http.route({
 
       return new Response("Successful user event", { status: 200 });
     } catch (error) {
-      const convexError = error instanceof ConvexError;
+      if (error instanceof ConvexError) {
+        const msg = error.message;
 
-      if (convexError) return new Response("ALREADY EXISTS", { status: 409 });
+        if (msg.includes("USER_NOT_FOUND")) {
+          return new Response("User not found", { status: 404 });
+        } else if (msg.includes("USAGE_NOT_FOUND")) {
+          return new Response("Usage not found", { status: 404 });
+        }
+      }
 
       return new Response("Error occurred", { status: 500 });
     }
