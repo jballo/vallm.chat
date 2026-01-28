@@ -44,7 +44,8 @@ export const deleteUser = internalMutation({
       .withIndex("by_ExternalId", (q) => q.eq("externalId", externalId))
       .unique();
 
-    if (userByExternalId === null) throw new ConvexError("User not found");
+    if (userByExternalId === null)
+      throw new ConvexError("[deleteUser]: USER_NOT_FOUND");
 
     const chats = await ctx.db
       .query("chats")
@@ -98,7 +99,7 @@ export const deleteUser = internalMutation({
       .unique();
 
     if (usageRecord === null)
-      throw new ConvexError("Failed to find user usage record");
+      throw new ConvexError("[deleteUser]: USAGE_NOT_FOUND");
 
     await ctx.db.delete(usageRecord._id);
 
