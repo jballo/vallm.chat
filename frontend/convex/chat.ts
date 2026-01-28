@@ -197,6 +197,13 @@ export const branchChat = mutation({
 
     const { title, conversationId, messageId } = args;
 
+    const chat = await ctx.db.get(conversationId);
+
+    if (chat === null) throw new Error("Chat not found");
+
+    if (chat.ownerId !== user._id)
+      throw new Error("Not authorized to branch chat");
+
     const newConversationId = await ctx.db.insert("chats", {
       ownerId: user._id,
       title: title,
