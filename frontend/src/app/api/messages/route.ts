@@ -1,10 +1,7 @@
 // export const runtime = 'edge';
 
 import { auth } from "@clerk/nextjs/server";
-import { 
-  fetchAction, 
-  fetchMutation, 
-} from "convex/nextjs";
+import { fetchAction, fetchMutation } from "convex/nextjs";
 import { NextResponse } from "next/server";
 import { api } from "../../../../convex/_generated/api";
 import { consumeStream, ModelMessage, streamText } from "ai";
@@ -23,13 +20,7 @@ export async function POST(req: Request) {
     const stringifiedBody = body.prompt;
     const parsedBody = JSON.parse(stringifiedBody);
 
-
-    const { 
-      model, 
-      encryptedApiKey, 
-      history,
-      messageId, 
-    } = parsedBody;
+    const { model, encryptedApiKey, history, messageId } = parsedBody;
 
     if (!encryptedApiKey) throw new Error("No encrypted api key provided!");
 
@@ -38,12 +29,11 @@ export async function POST(req: Request) {
       {
         encryptedApiKey,
       },
-      { token }
+      { token },
     );
 
-
     if (decryptedApiKey.success !== true) {
-      throw new Error(`${decryptedApiKey.error}`)
+      throw new Error(`${decryptedApiKey.error}`);
     }
 
     let formattedHistory = history as ModelMessage[];
@@ -82,11 +72,12 @@ export async function POST(req: Request) {
       baseURL: "https://generativelanguage.googleapis.com/v1beta",
       apiKey: decryptedApiKey.apiKey,
     });
-    
-    const modelInvocation = fileSupportedLLMs.includes(model) ? google(model) : groq(model);
 
+    const modelInvocation = fileSupportedLLMs.includes(model)
+      ? google(model)
+      : groq(model);
 
-    let finalText = '';
+    let finalText = "";
 
     const result = streamText({
       model: modelInvocation,
@@ -97,7 +88,7 @@ export async function POST(req: Request) {
           finalText += chunk.text;
         }
       },
-      abortSignal: req.signal,       // for now, the abortSignal implementation will not be focused on
+      abortSignal: req.signal, // for now, the abortSignal implementation will not be focused on
     });
 
     return result.toUIMessageStreamResponse({
@@ -115,19 +106,21 @@ export async function POST(req: Request) {
         //   .join('') || '';
 
         await fetchMutation(
-          api.messages.updateMessageRoute,
+          api.messages.updateMessage,
           {
             messageId,
             content: finalText,
           },
-          { token }
+          { token },
         );
 
-        await fetchMutation(api.messages.completeMessage, {
-          messageId
-        },
-        { token }
-      );
+        await fetchMutation(
+          api.messages.completeMessage,
+          {
+            messageId,
+          },
+          { token },
+        );
 
         console.log(finalText);
       },
@@ -135,10 +128,10 @@ export async function POST(req: Request) {
     });
   } catch (error) {
     console.log("Error: ", error);
-    
+
     return NextResponse.json(
       { error: "Failed to send message" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

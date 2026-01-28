@@ -110,7 +110,7 @@ export const getMessages = query({
   },
 });
 
-export const updateMessageRoute = mutation({
+export const updateMessage = mutation({
   args: {
     messageId: v.id("messages"),
     content: v.string(),
@@ -118,7 +118,22 @@ export const updateMessageRoute = mutation({
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (identity === null) throw new Error("Not authenticated");
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_ExternalId", (q) => q.eq("externalId", identity.subject))
+      .unique();
+
+    if (user === null) throw new Error("User not found");
+
     const { messageId, content } = args;
+
+    const message = await ctx.db.get(messageId);
+
+    if (message === null) throw new Error("Message not found");
+
+    if (message.ownerId !== user._id)
+      throw new Error("Not authorized to update message");
 
     await ctx.db.patch(messageId, {
       payload: {
@@ -135,7 +150,21 @@ export const completeMessage = mutation({
     const identity = await ctx.auth.getUserIdentity();
     if (identity === null) throw new Error("Not authenticated");
 
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_ExternalId", (q) => q.eq("externalId", identity.subject))
+      .unique();
+
+    if (user === null) throw new Error("User not found");
+
     const { messageId } = args;
+
+    const message = await ctx.db.get(messageId);
+
+    if (message === null) throw new Error("Message not found");
+
+    if (message.ownerId !== user._id)
+      throw new Error("Not authorized to complete message");
 
     await ctx.db.patch(messageId, {
       isStreaming: false,
