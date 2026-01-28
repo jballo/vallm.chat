@@ -2,7 +2,13 @@
 
 import { Textarea } from "@/atoms/textarea";
 import { UploadButton } from "@/utils/uploadthing";
-import { Ellipsis, LoaderCircle, OctagonXIcon, Paperclip, Send } from "lucide-react";
+import {
+  Ellipsis,
+  LoaderCircle,
+  OctagonXIcon,
+  Paperclip,
+  Send,
+} from "lucide-react";
 import Image from "next/image";
 import { ModelSelector } from "./model-selector";
 import { Button } from "@/atoms/button";
@@ -65,27 +71,31 @@ interface MessageInputProps {
     capabilities: string[];
   }) => void;
   activeChat: { id: Id<"chats">; title: string } | null;
-  useage:
-  | {
-    _id: Id<"useage">;
-    _creationTime: number;
-    user_id: string;
-    messagesRemaining: number;
-  }
-  | null
-  | undefined;
+  usage:
+    | {
+        _id: Id<"usage">;
+        _creationTime: number;
+        messagesRemaining: number;
+        userId: Id<"users">;
+      }
+    | null
+    | undefined;
   getAllApiKeys:
-  | {
-    _id: Id<"userApiKeys">;
-    _creationTime: number;
-    user_id: string;
-    provider: string;
-    encryptedApiKey: string;
-  }[]
-  | undefined;
+    | {
+        _id: Id<"userApiKeys">;
+        _creationTime: number;
+        userId: Id<"users">;
+        provider: string;
+        encryptedApiKey: string;
+        derivedAt: number;
+      }[]
+    | undefined;
   messageLoading: boolean;
   setMessageLoading: (val: boolean) => void;
-  complete: (prompt: string, options?: CompletionRequestOptions) => Promise<string | null | undefined>
+  complete: (
+    prompt: string,
+    options?: CompletionRequestOptions,
+  ) => Promise<string | null | undefined>;
   stop: () => void;
   setTemp: (str: string) => void;
 }
@@ -94,7 +104,7 @@ export default function MessageInput({
   selectedModel,
   setSelectedModel,
   activeChat,
-  useage,
+  usage,
   getAllApiKeys,
   messageLoading,
   setMessageLoading,
@@ -106,18 +116,22 @@ export default function MessageInput({
   const { isLoading, isAuthenticated } = useConvexAuth();
 
   const queryVariables = useMemo(() => {
-    return activeChat ? { conversationId: activeChat.id } : "skip";
-  }, [activeChat]);
+    const authenticated = user && isLoaded && isSignedIn;
+    if (!authenticated) return "skip";
+    if (activeChat === null) return "skip";
 
-  const messages = useQuery(api.messages.getMessages, queryVariables) || [];
+    return { chatId: activeChat.id };
+  }, [activeChat, user, isLoaded, isSignedIn]);
+
+  const messages = useQuery(api.messages.getMessages, queryVariables) ?? [];
 
   const [message, setMessage] = useState("");
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
 
   const uploadImages = useMutation(api.files.uploadImages);
   const saveUserMessage = useMutation(api.messages.saveUserMessage);
+  const updateUsage = useMutation(api.users.updateUsage);
   const initateAssistantMessage = useMutation(api.messages.initiateMessage);
-  const updateUseage = useMutation(api.users.updateUseage);
 
   // const { completion, complete } = useCompletion({
   //   api: '/api/completion',
@@ -135,12 +149,12 @@ export default function MessageInput({
   const handleSendMessageRoute = async () => {
     if (!user || !isSignedIn || !isLoaded || !getAllApiKeys) return;
     const availableProviders: string[] = getAllApiKeys.map(
-      (key) => key.provider
+      (key) => key.provider,
     );
 
     if (
       !availableProviders.some(
-        (provider) => provider === selectedModel.provider
+        (provider) => provider === selectedModel.provider,
       )
     ) {
       console.log("No provider key provided!");
@@ -152,17 +166,16 @@ export default function MessageInput({
 
     if (isLoading || !isAuthenticated) return;
 
-    if (useage === null || useage === undefined || useage.messagesRemaining < 1)
+    if (usage === null || usage === undefined || usage.messagesRemaining < 1)
       return;
 
     const encryptedApiKey = getAllApiKeys.find(
-      (key) => key.provider === selectedModel.provider
+      (key) => key.provider === selectedModel.provider,
     );
 
     if (!encryptedApiKey) return;
     setTemp("");
     setMessageLoading(true);
-
 
     let chat_id: Id<"chats"> | null;
 
@@ -236,22 +249,22 @@ export default function MessageInput({
     const latestMessage: ModelMessage = {
       role: "user",
       content: message,
-    }
+    };
 
     await saveUserMessage({
-      chat_id: chat_id,
+      chatId: chat_id,
       userMessage: latestMessage,
-      model: selectedModel.id,
+      modelId: selectedModel.id,
     });
 
     const messageId = await initateAssistantMessage({
-      chat_id: chat_id,
-      model: selectedModel.id,
+      chatId: chat_id,
+      modelId: selectedModel.id,
     });
 
-    await updateUseage({
-      useageId: useage._id,
-      credits: useage.messagesRemaining - 1,
+    await updateUsage({
+      usageId: usage._id,
+      credits: usage.messagesRemaining - 1,
     });
 
     let newHistory: ModelMessage[] = [];
@@ -291,16 +304,15 @@ export default function MessageInput({
       const oldHistory: ModelMessage[] = [];
 
       messages.map((m) => {
-        if (m.message) {
+        if (m.payload) {
           oldHistory.push({
-            role: m.message.role,
-            content: m.message.content,
+            role: m.payload.role,
+            content: m.payload.content,
           });
         }
       });
 
       newHistory = [...oldHistory, msg];
-
     } else {
       const msg: ModelMessage = {
         role: "user",
@@ -310,37 +322,36 @@ export default function MessageInput({
       const oldHistory: ModelMessage[] = [];
 
       messages.map((m) => {
-        if (m.message) {
+        if (m.payload) {
           oldHistory.push({
-            role: m.message.role,
-            content: m.message.content,
+            role: m.payload.role,
+            content: m.payload.content,
           });
         }
       });
 
       newHistory = [...oldHistory, msg];
-
     }
 
     try {
-
       await complete(
         JSON.stringify({
           model: selectedModel.id,
           encryptedApiKey: encryptedApiKey.encryptedApiKey,
           history: newHistory,
           messageId: messageId,
-        })
-      )
+        }),
+      );
     } catch (error) {
-      if (error instanceof DOMException && error.name === 'AbortError') {
+      if (error instanceof DOMException && error.name === "AbortError") {
         // This is a user-initiated abort - should be handled as success
         console.log("Request aborted by user");
       } else {
         // This is a system error (network issue, etc.)
         console.error("System error:", error);
         toast.error("Connection Error", {
-          description: "Failed to connect to the server. Please check your connection and try again.",
+          description:
+            "Failed to connect to the server. Please check your connection and try again.",
         });
       }
     } finally {
@@ -401,57 +412,59 @@ export default function MessageInput({
           <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center gap-2">
             {(selectedModel.capabilities.includes("image") ||
               selectedModel.capabilities.includes("pdf")) && (
-                <UploadButton
-                  endpoint="imageUploader"
-                  className="ut-button:h-9 ut-button:w-9 ut-button:bg-transparent ut-allowed-content:hidden"
-                  content={{
-                    button({ ready }) {
-                      if (ready)
-                        return <Paperclip className="w-4 h-4 text-[#99a1af]" />;
+              <UploadButton
+                endpoint="imageUploader"
+                className="ut-button:h-9 ut-button:w-9 ut-button:bg-transparent ut-allowed-content:hidden"
+                content={{
+                  button({ ready }) {
+                    if (ready)
+                      return <Paperclip className="w-4 h-4 text-[#99a1af]" />;
 
+                    return <Ellipsis className="w-4 h-4 text-[#99a1af]" />;
+                  },
+                  allowedContent({ ready, isUploading }) {
+                    if (!ready)
                       return <Ellipsis className="w-4 h-4 text-[#99a1af]" />;
-                    },
-                    allowedContent({ ready, isUploading }) {
-                      if (!ready)
-                        return <Ellipsis className="w-4 h-4 text-[#99a1af]" />;
-                      if (isUploading)
-                        return (
-                          <LoaderCircle className="w-4 h-4 text-[#99a1af]" />
-                        );
-                      return "";
-                    },
-                  }}
-                  onClientUploadComplete={async (res) => {
-                    // Do something with the response
-                    console.log("Files: ", res);
-                    const filesFormatted: {
-                      name: string;
-                      url: string;
-                      size: number;
-                      mimeType: string;
-                    }[] = [];
+                    if (isUploading)
+                      return (
+                        <LoaderCircle className="w-4 h-4 text-[#99a1af]" />
+                      );
+                    return "";
+                  },
+                }}
+                onClientUploadComplete={async (res) => {
+                  // Do something with the response
+                  console.log("Files: ", res);
+                  const filesFormatted: {
+                    name: string;
+                    url: string;
+                    size: number;
+                    mimeType: string;
+                    key: string;
+                  }[] = [];
 
-                    res.map((file) => {
-                      filesFormatted.push({
-                        name: file.name,
-                        url: file.ufsUrl,
-                        size: file.size,
-                        mimeType: file.type,
-                      });
+                  res.map((file) => {
+                    filesFormatted.push({
+                      name: file.name,
+                      url: file.ufsUrl,
+                      size: file.size,
+                      mimeType: file.type,
+                      key: file.key,
                     });
+                  });
 
-                    const tempFiles = await uploadImages({
-                      files: filesFormatted,
-                    });
-                    setUploadedFiles((prevFiles) => [...prevFiles, ...tempFiles]);
-                    // alert("Upload Completed");
-                  }}
-                  onUploadError={(error: Error) => {
-                    // Do something with the error.
-                    alert(`ERROR! ${error.message}`);
-                  }}
-                />
-              )}
+                  const tempFiles = await uploadImages({
+                    files: filesFormatted,
+                  });
+                  setUploadedFiles((prevFiles) => [...prevFiles, ...tempFiles]);
+                  // alert("Upload Completed");
+                }}
+                onUploadError={(error: Error) => {
+                  // Do something with the error.
+                  alert(`ERROR! ${error.message}`);
+                }}
+              />
+            )}
             <ModelSelector
               selectedModel={selectedModel}
               setSelectedModel={setSelectedModel}
@@ -476,7 +489,6 @@ export default function MessageInput({
               >
                 <Send className="h-4 w-4" />
               </Button>
-
             )}
           </div>
         </div>

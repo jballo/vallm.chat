@@ -37,21 +37,22 @@ import { Id } from "../../../../../../convex/_generated/dataModel";
 interface ChatMainHeaderProps {
   activeTab: "myChats" | "shared";
   activeChat: { id: Id<"chats">; title: string } | null;
-  useage:
-    | {
-        _id: Id<"useage">;
+  usage:
+    | 
+      {
+        _id: Id<"usage">;
         _creationTime: number;
-        user_id: string;
         messagesRemaining: number;
-      }
-    | null
-    | undefined;
+        userId: Id<"users">;
+      } 
+    | null 
+    | undefined
 }
 
 export default function ChatMainHeader({
   activeTab,
   activeChat,
-  useage,
+  usage,
 }: ChatMainHeaderProps) {
   const { theme, setTheme } = useTheme();
   const [email, setEmail] = useState<string>("");
@@ -63,9 +64,9 @@ export default function ChatMainHeader({
     if (!activeChat) return;
 
     await createInvitation({
-      recipient_email: email,
-      chat_id: activeChat.id,
-      chat_name: activeChat.title,
+      chatId: activeChat.id,
+      chatName: activeChat.title,
+      recipientEmail: email, 
     });
     setEmail("");
   };
@@ -84,7 +85,7 @@ export default function ChatMainHeader({
       </div>
       <div className="flex items-center gap-2">
         <Authenticated>
-          <CreditCount useage={useage} />
+          <CreditCount usage={usage} />
           {activeChat && activeTab === "myChats" && (
             <>
               {/* <Button

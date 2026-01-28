@@ -7,6 +7,7 @@ export const uploadImages = mutation({
       v.object({
         name: v.string(),
         url: v.string(),
+        key: v.string(),
         mimeType: v.string(),
         size: v.number(),
       })
@@ -18,7 +19,13 @@ export const uploadImages = mutation({
       throw new Error("Not authenticated");
     }
 
-    const user_id = identity.subject;
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_ExternalId", (q) => q.eq("externalId", identity.subject))
+      .unique();
+
+    if (user === null) throw new Error("User not found");
+
     const files = args.files;
     const uploadedFiles: { type: string; data: string; mimeType: string }[] =
       [];
@@ -28,8 +35,9 @@ export const uploadImages = mutation({
         name: file.name,
         url: file.url,
         size: file.size,
-        authorId: user_id,
+        ownerId: user._id,
         mimeType: file.mimeType,
+        key: file.key,
       });
       uploadedFiles.push({
         type: "file",

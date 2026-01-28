@@ -68,7 +68,6 @@ export const saveApiKey = action({
       const result = await ctx.runMutation(
         internal.keysMutations.ensureEncryptedApiKeys,
         {
-          user_id: identity.subject,
           encryptedApiKey: encryptedApiKey.encryptedKey,
           provider: provider,
           derivedAt,
@@ -110,10 +109,7 @@ export const simpleDecryptKey = action({
 
     try {
       const encryptionKeys = await ctx.runQuery(
-        internal.keysMutations.getEncryptionKeys,
-        {
-          user_id: identity.subject,
-        }
+        internal.keysMutations.getEncryptionKeys
       );
   
       if (!encryptionKeys) {
@@ -161,7 +157,6 @@ export const deleteApiKey = action({
     const encryptedApiKey = await ctx.runQuery(
       internal.keysMutations.getEncryptedApiKey,
       {
-        user_id: identity.subject,
         provider: provider,
       }
     );

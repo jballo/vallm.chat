@@ -72,7 +72,6 @@ export function ChatList({
   }, [conversations]);
 
   useEffect(() => {
-    console.log("Accepted chats: ", sharedChats);
     if (activeTab !== "shared") return;
 
     if (sharedChats.length > 0) {
@@ -90,7 +89,7 @@ export function ChatList({
     if (!searchQuery.trim()) return conversations;
 
     return conversations?.filter((conversation) =>
-      conversation.title.toLowerCase().includes(searchQuery.toLowerCase())
+      conversation.title.toLowerCase().includes(searchQuery.toLowerCase()),
     );
   }, [searchQuery, conversations]);
 
@@ -98,32 +97,26 @@ export function ChatList({
     if (!searchQuery.trim()) return sharedChats;
 
     return sharedChats?.filter((chat) =>
-      chat.title.toLocaleLowerCase().includes(searchQuery.toLocaleLowerCase())
+      chat.title.toLocaleLowerCase().includes(searchQuery.toLocaleLowerCase()),
     );
   }, [searchQuery, sharedChats]);
 
-  // // Group filtered conversations by date
-  // const groupedConversations = useMemo(() => {
-  //     return filteredConversations?.reduce(
-  //         (acc, conversation) => {
-  //             if (!acc[conversation.date]) {
-  //                 acc[conversation.date] = []
-  //             }
-  //             acc[conversation.date].push(conversation)
-  //             return acc
-  //         },
-  //         {} as Record<string, typeof conversations>,
-  //     )
-  // }, [filteredConversations])
-
   const handleDeleteChat = async (id: Id<"chats">) => {
-    await deleteChat({ conversationId: id });
+    if (activeChat === null) return;
+    const previousChat = activeChat;
+    try {
+      onChatSelect(null);
+      await deleteChat({ conversationId: id });
+    } catch (error) {
+      console.log("error deleting chat: ", error);
+      onChatSelect(previousChat);
+    }
   };
 
   const handleLeaveChat = async (id: Id<"chats">) => {
     console.log("leaving chat...");
     await leaveSharedChat({
-      chat_id: id,
+      chatId: id,
     });
     // onChatSelect(null);
   };
@@ -172,12 +165,12 @@ export function ChatList({
                 {filteredConversations.map((conversation) => (
                   <div
                     key={conversation._id}
-                    onClick={() =>
+                    onClick={() => {
                       onChatSelect({
                         id: conversation._id,
                         title: conversation.title,
-                      })
-                    }
+                      });
+                    }}
                     className={`mb-1 px-3 py-3 rounded-xl cursor-pointer text-sm transition-colors duration-150 hover:bg-[#2a2a2a] hover:text-white relative ${
                       activeChat?.id === conversation._id
                         ? "bg-sidebar-accent text-sidebar-accent-foreground hover:text-white"
@@ -194,7 +187,7 @@ export function ChatList({
                         </div>
                         <div className="text-xs">
                           {new Date(
-                            conversation._creationTime
+                            conversation._creationTime,
                           ).toLocaleString()}
                         </div>
                       </div>
@@ -234,7 +227,7 @@ export function ChatList({
                         </div>
                         <div className="text-xs">
                           {new Date(
-                            conversation._creationTime
+                            conversation._creationTime,
                           ).toLocaleString()}
                         </div>
                       </div>
@@ -256,7 +249,7 @@ export function ChatList({
           <Button
             onClick={() => onChatSelect(null)}
             className={clsx(
-              `w-12 h-12 rounded-xl flex items-center justify-center text-xs font-bold transition-colors duration-150 text-white`
+              `w-12 h-12 rounded-xl flex items-center justify-center text-xs font-bold transition-colors duration-150 text-white`,
             )}
           >
             <Plus className="w-4 h-4" />
@@ -269,7 +262,7 @@ export function ChatList({
               "w-12 h-12 rounded-xl flex items-center justify-center text-xs font-bold transition-colors duration-150",
               activeTab === "myChats"
                 ? "text-white"
-                : "bg-[#1e1e1e] text-gray-400 hover:bg-[#2a2a2a] hover:text-white"
+                : "bg-[#1e1e1e] text-gray-400 hover:bg-[#2a2a2a] hover:text-white",
             )}
           >
             <MessageSquare className="h-4 w-4" />
@@ -280,7 +273,7 @@ export function ChatList({
               "w-12 h-12 rounded-xl flex items-center justify-center text-xs font-bold transition-colors duration-150",
               activeTab === "shared"
                 ? "text-white"
-                : "bg-[#1e1e1e] text-gray-400 hover:bg-[#2a2a2a] hover:text-white"
+                : "bg-[#1e1e1e] text-gray-400 hover:bg-[#2a2a2a] hover:text-white",
             )}
           >
             <Users className="h-4 w-4" />
@@ -346,12 +339,17 @@ export function ChatSidebar({
   activeTab,
   setActiveTab,
 }: ChatSidebarProps) {
-  const { user } = useUser();
+  const { user, isSignedIn, isLoaded } = useUser();
   const router = useRouter();
 
   const navigateToLogin = () => {
     router.push("/sign-in");
   };
+
+  useEffect(() => {
+    // handles sign out, when clerk is initialized and user signed out -> sets chat to null
+    if (isLoaded && (!isLoaded || !user)) onChatSelect(null);
+  }, [isSignedIn, isLoaded, user]);
 
   return (
     <div

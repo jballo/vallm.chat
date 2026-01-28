@@ -8,32 +8,22 @@ import { Id } from "../../../../../../convex/_generated/dataModel";
 
 interface MessageAreaProps {
   activeChat: { id: Id<"chats">; title: string } | null;
-  useage:
-  | {
-    _id: Id<"useage">;
-    _creationTime: number;
-    user_id: string;
-    messagesRemaining: number;
-  }
-  | null
-  | undefined;
-
   getAllApiKeys:
-  | {
-    _id: Id<"userApiKeys">;
-    _creationTime: number;
-    user_id: string;
-    provider: string;
-    encryptedApiKey: string;
-  }[]
-  | undefined;
+    | {
+      _id: Id<"userApiKeys">;
+      _creationTime: number;
+      userId?: Id<"users"> | undefined;
+      provider: string;
+      encryptedApiKey: string;
+      derivedAt: number;
+      }[] 
+    | undefined;
   activeTab: "myChats" | "shared";
   streamedMessage: string;
 }
 
 export default function MessageArea({
   activeChat,
-  useage,
   getAllApiKeys,
   activeTab,
   streamedMessage,
@@ -45,7 +35,6 @@ export default function MessageArea({
           <ChatMessages
             activeChat={activeChat}
             activeTab={activeTab}
-            useage={useage}
             allAvailableApiKeys={getAllApiKeys}
             streamedMessage={streamedMessage}
           />

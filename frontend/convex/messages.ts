@@ -3,32 +3,29 @@ import { mutation, query } from "./_generated/server";
 import { coreMessage } from "./schema/types";
 // import { api } from "./_generated/api";
 
-
 export const saveUserMessage = mutation({
   args: {
-    chat_id: v.id("chats"),
+    chatId: v.id("chats"),
     userMessage: coreMessage,
-    model: v.string(),
+    modelId: v.string(),
   },
   handler: async (ctx, args) => {
-    const idendity = await ctx.auth.getUserIdentity();
-    if (!idendity) throw new Error("Not authenticated!");
+    const identity = await ctx.auth.getUserIdentity();
+    if (identity === null) throw new Error("Not authenticated!");
 
-    const { chat_id, userMessage, model } = args;
+    const { chatId, userMessage, modelId } = args;
+
+    const author = await ctx.db
+      .query("users")
+      .withIndex("by_ExternalId", (q) => q.eq("externalId", identity.subject))
+      .unique();
+
+    if (author === null) throw new Error("Author not found");
 
     await ctx.db.insert("messages", {
-      // old fields
-      author_id: idendity.subject,
-      chat_id,
-      message: userMessage,
-      isComplete: true,
-      error: false,
-      model: model,
-
-      // new fields
-      authorId: idendity.subject,
-      chatId: chat_id,
-      modelId: model,
+      ownerId: author._id,
+      chatId,
+      modelId,
       hasError: false,
       payload: userMessage,
       isStreaming: false,
@@ -38,27 +35,26 @@ export const saveUserMessage = mutation({
 
 export const initiateMessage = mutation({
   args: {
-    chat_id: v.id("chats"),
-    model: v.string(),
+    chatId: v.id("chats"),
+    modelId: v.string(),
   },
   handler: async (ctx, args) => {
-    const idenity = await ctx.auth.getUserIdentity();
-    if (!idenity) throw new Error("Not authenticated!");
+    const identity = await ctx.auth.getUserIdentity();
+    if (identity === null) throw new Error("Not authenticated!");
 
-    const { chat_id, model } = args;
+    const author = await ctx.db
+      .query("users")
+      .withIndex("by_ExternalId", (q) => q.eq("externalId", identity.subject))
+      .unique();
+
+    if (author === null) throw new Error("Author not found");
+
+    const { chatId, modelId } = args;
 
     const message_id = await ctx.db.insert("messages", {
-      // old fields
-      author_id: idenity.subject,
-      chat_id: chat_id,
-      message: { role: "assistant", content: "" },
-      isComplete: false,
-      error: false,
-      model: model,
-      // new fields
-      authorId: idenity.subject,
-      chatId: chat_id,
-      modelId: model,
+      ownerId: author._id,
+      chatId,
+      modelId,
       hasError: false,
       payload: { role: "assistant", content: "" },
       isStreaming: true,
@@ -69,22 +65,48 @@ export const initiateMessage = mutation({
 });
 
 export const getMessages = query({
-  args: { conversationId: v.id("chats") },
+  args: { chatId: v.id("chats") },
   handler: async (ctx, args) => {
-    // return all the messages for the appropirate conversation
-    const conversation_id = args.conversationId;
+    const identity = await ctx.auth.getUserIdentity();
+    if (identity === null) throw new Error("Not authenticated");
+    const { chatId } = args;
 
-    // const messages = await ctx.db
-    //   .query("messages")
-    //   .filter((q) => q.eq(q.field("chat_id"), conversation_id))
-    //   .collect();
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_ExternalId", (q) => q.eq("externalId", identity.subject))
+      .unique();
 
-    const optimalMessages = await ctx.db
-      .query("messages")
-      .withIndex("by_chatId", (q) => q.eq("chatId", conversation_id))
+    if (user === null) throw new Error("User not found");
+
+    const conversation = await ctx.db.get(chatId);
+
+    // Return empty if chat was deleted  - handles race condition where
+    // client subscription hasn't updated  yet after deletion
+    if (conversation === null) return [];
+
+    const ownerId = conversation.ownerId;
+
+    const acceptedInvitations = await ctx.db
+      .query("invites")
+      .withIndex("by_chatId", (q) => q.eq("chatId", chatId))
+      .filter((q) => q.eq(q.field("status"), "accepted"))
       .collect();
 
-    return optimalMessages;
+    const acceptedInviteeIds = acceptedInvitations.map((invitation) => {
+      return invitation.recipientUserId;
+    });
+
+    const authorizedUsers = [ownerId, ...acceptedInviteeIds];
+
+    const authorized = authorizedUsers.includes(user._id);
+    if (!authorized) throw new Error("User not authorized");
+
+    const messages = await ctx.db
+      .query("messages")
+      .withIndex("by_chatId", (q) => q.eq("chatId", chatId))
+      .collect();
+
+    return messages;
   },
 });
 
@@ -94,22 +116,15 @@ export const updateMessageRoute = mutation({
     content: v.string(),
   },
   handler: async (ctx, args) => {
-    const idenity = await ctx.auth.getUserIdentity();
-    if (!idenity) throw new Error("Not authenticated");
-    const messageId = args.messageId;
-    const content = args.content;
+    const identity = await ctx.auth.getUserIdentity();
+    if (identity === null) throw new Error("Not authenticated");
+    const { messageId, content } = args;
 
     await ctx.db.patch(messageId, {
-      // old field
-      message: {
-        content: content,
-        role: "assistant",
-      },
-      // new field
       payload: {
         content: content,
         role: "assistant",
-      }
+      },
     });
   },
 });
@@ -117,15 +132,12 @@ export const updateMessageRoute = mutation({
 export const completeMessage = mutation({
   args: { messageId: v.id("messages") },
   handler: async (ctx, args) => {
-    const idenity = await ctx.auth.getUserIdentity();
-    if (!idenity) throw new Error("Not authenticated");
-    // update appropriate message with the completed status
-    const messageId = args.messageId;
+    const identity = await ctx.auth.getUserIdentity();
+    if (identity === null) throw new Error("Not authenticated");
 
-    await ctx.db.patch(messageId, { 
-      // old field
-      isComplete: true,
-      // new field
+    const { messageId } = args;
+
+    await ctx.db.patch(messageId, {
       isStreaming: false,
     });
   },
