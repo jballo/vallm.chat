@@ -116,34 +116,6 @@ export const hybridSaveChat = mutation({
   },
 });
 
-export const chatExists = query({
-  args: {
-    chatId: v.id("chats"),
-  },
-  handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-
-    if (identity === null) throw new Error("Not authenticated");
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_ExternalId", (q) => q.eq("externalId", identity.subject))
-      .unique();
-
-    if (user === null) throw new Error("Failed to find user");
-
-    const { chatId } = args;
-
-    const chat = await ctx.db.get(chatId);
-
-    console.log("chat: ", chat);
-
-    if (chat === null) return false;
-
-    return true;
-  },
-});
-
 export const getChats = query({
   args: {},
   handler: async (ctx) => {
