@@ -1,91 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 
-// export const createChat = action({
-//   args: {
-//     history: v.array(coreMessage),
-//     model: v.string(),
-//     useageId: v.id("useage"),
-//     credits: v.number(),
-//     encryptedApiKey: v.string(),
-//   },
-//   async handler(ctx, args) {
-//     const identity = await ctx.auth.getUserIdentity();
-//     if (identity === null) {
-//       throw new Error("Not authenticated");
-//     }
-
-//     const user_id = identity.subject;
-//     const history = args.history;
-//     const model = args.model;
-//     const useageId = args.useageId;
-//     const credits = args.credits;
-//     const encryptedApiKey = args.encryptedApiKey;
-
-//     const google = createGoogleGenerativeAI({
-//       baseURL: "https://generativelanguage.googleapis.com/v1beta",
-//       apiKey: process.env.GEMINI_KEY,
-//     });
-
-//     const { text } = await generateText({
-//       model: google("gemini-2.0-flash-lite"),
-//       system:
-//         "Generate a four word title that describes the message the user will provider. NO LONGER THAN FOUR WORDS",
-//       messages: history as CoreMessage[],
-//     });
-
-//     console.log("Title: ", text);
-
-//     await ctx.runMutation(api.chat.saveChat, {
-//       userId: user_id,
-//       title: text,
-//       history: history,
-//       model: model,
-//       useageId: useageId,
-//       credits: credits,
-//       encryptedApiKey: encryptedApiKey,
-//     });
-//   },
-// });
-
-// export const saveChat = mutation({
-//   args: {
-//     userId: v.string(),
-//     title: v.string(),
-//     history: v.array(coreMessage),
-//     model: v.string(),
-//     useageId: v.id("useage"),
-//     credits: v.number(),
-//     encryptedApiKey: v.string(),
-//   },
-//   handler: async (ctx, args) => {
-//     const user_id = args.userId;
-//     const generatedTitle = args.title;
-//     const history = args.history;
-//     const model = args.model;
-//     const useageId = args.useageId;
-//     const credits = args.credits;
-//     const encryptedApiKey = args.encryptedApiKey;
-
-//     const chat_id = await ctx.db.insert("chats", {
-//       user_id: user_id,
-//       title: generatedTitle,
-//     });
-//     console.log("chat_id: ", chat_id);
-
-//     // create the message for the new chat
-
-//     // await ctx.runMutation(api.messages.sendMessage, {
-//     //   conversationId: chat_id,
-//     //   history: history,
-//     //   model: model,
-//     //   useageId: useageId,
-//     //   credits: credits,
-//     //   encryptedApiKey: encryptedApiKey,
-//     // });
-//   },
-// });
-
 export const hybridSaveChat = mutation({
   args: {
     title: v.string(),
@@ -148,7 +63,21 @@ export const deleteChat = mutation({
 
     if (identity === null) throw new Error("Not authenticated");
 
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_ExternalId", (q) => q.eq("externalId", identity.subject))
+      .unique();
+
+    if (user === null) throw new Error("User not found");
+
     const { conversationId } = args;
+
+    const chat = await ctx.db.get(conversationId);
+
+    if (chat === null) throw new Error("Chat not found");
+
+    if (chat.ownerId !== user._id)
+      throw new Error("Not authorized to delete chat");
 
     const messages = await ctx.db
       .query("messages")
