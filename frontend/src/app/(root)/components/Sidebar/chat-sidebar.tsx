@@ -102,8 +102,15 @@ export function ChatList({
   }, [searchQuery, sharedChats]);
 
   const handleDeleteChat = async (id: Id<"chats">) => {
-    onChatSelect(null);
-    await deleteChat({ conversationId: id });
+    if (activeChat === null) return;
+    const previousChat = activeChat;
+    try {
+      onChatSelect(null);
+      await deleteChat({ conversationId: id });
+    } catch (error) {
+      console.log("error deleting chat: ", error);
+      onChatSelect(previousChat);
+    }
   };
 
   const handleLeaveChat = async (id: Id<"chats">) => {
@@ -340,7 +347,8 @@ export function ChatSidebar({
   };
 
   useEffect(() => {
-    if (!isSignedIn || !isLoaded || !user) onChatSelect(null);
+    // handles sign out, when clerk is initialized and user signed out -> sets chat to null
+    if (isLoaded && (!isLoaded || !user)) onChatSelect(null);
   }, [isSignedIn, isLoaded, user]);
 
   return (

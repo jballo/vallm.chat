@@ -81,7 +81,9 @@ export const deleteUser = internalMutation({
     // collect any invitation sent to this user
     const invitations = await ctx.db
       .query("invites")
-      .withIndex("by_recipientUserId", (q) => q.eq("recipientUserId", userByExternalId._id))
+      .withIndex("by_recipientUserId", (q) =>
+        q.eq("recipientUserId", userByExternalId._id),
+      )
       .collect();
 
     // delete any invitation sent to this user
@@ -181,7 +183,20 @@ export const updateUsage = mutation({
     const identity = await ctx.auth.getUserIdentity();
     if (identity === null) throw new Error("Not authenticated!");
 
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_ExternalId", (q) => q.eq("externalId", identity.subject))
+      .unique();
+
+    if (user === null) throw new Error("User not found");
+
     const { usageId, credits } = args;
+    const usage = await ctx.db.get(usageId);
+
+    if (usage === null) throw new Error("Usage document not found");
+
+    if (user._id !== usage.userId)
+      throw new Error("Not authorized to update usage");
 
     await ctx.db.patch(usageId, { messagesRemaining: credits });
   },
