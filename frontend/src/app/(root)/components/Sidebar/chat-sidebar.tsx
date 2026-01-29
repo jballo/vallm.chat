@@ -53,8 +53,15 @@ export function ChatList({
 }: ChatListProps) {
   const [searchQuery, setSearchQuery] = useState("");
 
-  const conversations = useQuery(api.chat.getChats) || [];
-  const sharedChats = useQuery(api.sharing.getAcceptedChats) || [];
+  const rawConversations = useQuery(api.chat.getChats);
+  const conversations = useMemo(
+    () => rawConversations ?? [],
+    [rawConversations],
+  );
+
+  const rawSharedChats = useQuery(api.sharing.getAcceptedChats);
+  const sharedChats = useMemo(() => rawSharedChats ?? [], [rawSharedChats]);
+
   const deleteChat = useMutation(api.chat.deleteChat);
   const leaveSharedChat = useMutation(api.sharing.leaveSharedChat);
 
@@ -69,7 +76,7 @@ export function ChatList({
     } else {
       onChatSelect(null);
     }
-  }, [conversations]);
+  }, [conversations, activeTab, onChatSelect]);
 
   useEffect(() => {
     if (activeTab !== "shared") return;
@@ -82,7 +89,7 @@ export function ChatList({
     } else {
       onChatSelect(null);
     }
-  }, [sharedChats]);
+  }, [sharedChats, activeTab, onChatSelect]);
 
   // Filter conversations based on search query
   const filteredConversations = useMemo(() => {
@@ -193,7 +200,10 @@ export function ChatList({
                       </div>
                       <Button
                         className={`bg-transparent ${activeChat?.id === conversation._id ? "" : "hidden"}`}
-                        onClick={() => handleDeleteChat(conversation._id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteChat(conversation._id);
+                        }}
                       >
                         <Trash />
                       </Button>
@@ -349,7 +359,7 @@ export function ChatSidebar({
   useEffect(() => {
     // handles sign out, when clerk is initialized and user signed out -> sets chat to null
     if (isLoaded && (!isLoaded || !user)) onChatSelect(null);
-  }, [isSignedIn, isLoaded, user]);
+  }, [isSignedIn, isLoaded, user, onChatSelect]);
 
   return (
     <div

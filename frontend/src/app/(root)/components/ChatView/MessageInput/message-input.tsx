@@ -166,8 +166,12 @@ export default function MessageInput({
 
     if (isLoading || !isAuthenticated) return;
 
-    if (usage === null || usage === undefined || usage.messagesRemaining < 1)
+    if (usage === null || usage === undefined || usage.messagesRemaining < 1) {
+      toast.error("No more credits!", {
+        description: "Please purchase more credits.",
+      });
       return;
+    }
 
     const encryptedApiKey = getAllApiKeys.find(
       (key) => key.provider === selectedModel.provider,
