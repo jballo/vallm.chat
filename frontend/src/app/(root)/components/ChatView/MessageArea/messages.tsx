@@ -44,8 +44,8 @@ export function ChatMessages({
     return { chatId: activeChat.id };
   }, [activeChat, user, isLoaded, isSignedIn]);
 
-  const rawMesages = useQuery(api.messages.getMessages, queryVariables);
-  const messages = useMemo(() => rawMesages ?? [], [rawMesages]);
+  const rawMessages = useQuery(api.messages.getMessages, queryVariables);
+  const messages = useMemo(() => rawMessages ?? [], [rawMessages]);
   const recentMessage =
     messages.length > 0 ? messages[messages.length - 1] : undefined;
   const recentMessageLoaded =
