@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { Id } from "../../../../../../convex/_generated/dataModel";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../../../../convex/_generated/api";
@@ -44,21 +44,25 @@ export function ChatMessages({
     return { chatId: activeChat.id };
   }, [activeChat, user, isLoaded, isSignedIn]);
 
-  const messages = useQuery(api.messages.getMessages, queryVariables) ?? [];
-
+  const rawMessages = useQuery(api.messages.getMessages, queryVariables);
+  const messages = useMemo(() => rawMessages ?? [], [rawMessages]);
   const recentMessage =
     messages.length > 0 ? messages[messages.length - 1] : undefined;
   const recentMessageLoaded =
     recentMessage !== undefined && recentMessage.isStreaming === true;
 
-  const onBranchChat = async (message_id: Id<"messages">) => {
-    if (!activeChat) return;
-    await branchChat({
-      title: activeChat.title,
-      conversationId: activeChat.id,
-      messageId: message_id,
-    });
-  };
+  const onBranchChat = useCallback(
+    async (message_id: Id<"messages">) => {
+      if (!activeChat) return;
+      // if (branchChat === undefined) return;
+      await branchChat({
+        title: activeChat.title,
+        conversationId: activeChat.id,
+        messageId: message_id,
+      });
+    },
+    [activeChat, branchChat],
+  );
 
   const renderedMessagesOptimal = useMemo(
     () =>
@@ -152,7 +156,7 @@ export function ChatMessages({
           </div>
         </div>
       )),
-    [messages, recentMessageLoaded, activeTab],
+    [messages, activeTab, onBranchChat],
   );
 
   const streamedOptimal = useMemo(
