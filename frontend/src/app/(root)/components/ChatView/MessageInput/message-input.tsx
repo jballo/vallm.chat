@@ -278,9 +278,10 @@ export default function MessageInput({
         type: "text",
         text: message,
       };
+
       const tempFiles: (CoreImagePart | CoreFilePart)[] = [];
 
-      uploadedFiles.map((file) => {
+      for (const file of uploadedFiles) {
         if (file.mimeType === "application/pdf") {
           const tempFile: CoreFilePart = {
             type: "file",
@@ -296,9 +297,26 @@ export default function MessageInput({
           };
           tempFiles.push(tempImg);
         }
-      });
+      }
 
-      const content: CoreContent = [userMsg, ...tempFiles];
+      const fileParts: (CoreImagePart | CoreFilePart)[] = uploadedFiles.map(
+        (file): CoreImagePart | CoreFilePart => {
+          if (file.mimeType === "application/pdf") {
+            return {
+              type: "file",
+              data: file.data,
+              mimeType: file.mimeType,
+            };
+          }
+          return {
+            type: "image",
+            image: file.data,
+            mimeType: file.mimeType,
+          };
+        },
+      );
+
+      const content: CoreContent = [userMsg, ...fileParts];
 
       const msg: ModelMessage = {
         role: "user",
