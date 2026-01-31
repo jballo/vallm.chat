@@ -146,6 +146,23 @@ export default function MessageInput({
   //   setMessageLoading(false);
   // }
 
+  const buildFileParts = (files: File[]): (CoreImagePart | CoreFilePart)[] => {
+    return files.map((file) => {
+      if (file.mimeType === "application/pdf") {
+        return {
+          type: "file",
+          data: file.data,
+          mimeType: file.mimeType,
+        };
+      }
+      return {
+        type: "image",
+        image: file.data,
+        mimeType: file.mimeType,
+      };
+    });
+  };
+
   const handleSendMessageRoute = async () => {
     if (!user || !isSignedIn || !isLoaded || !getAllApiKeys) return;
     const availableProviders: string[] = getAllApiKeys.map(
@@ -183,34 +200,16 @@ export default function MessageInput({
 
     let chat_id: Id<"chats"> | null;
 
-    let history;
+    let history: ModelMessage[];
 
     if (uploadedFiles.length > 0) {
       const userMsg: CoreTextPart = {
         type: "text",
         text: message,
       };
-      const tempFiles: (CoreImagePart | CoreFilePart)[] = [];
+      const fileParts = buildFileParts(uploadedFiles);
 
-      uploadedFiles.map((file) => {
-        if (file.mimeType === "application/pdf") {
-          const tempFile: CoreFilePart = {
-            type: "file",
-            data: file.data,
-            mimeType: file.mimeType,
-          };
-          tempFiles.push(tempFile);
-        } else {
-          const tempImg: CoreImagePart = {
-            type: "image",
-            image: file.data,
-            mimeType: file.mimeType,
-          };
-          tempFiles.push(tempImg);
-        }
-      });
-
-      const content: CoreContent = [userMsg, ...tempFiles];
+      const content: CoreContent = [userMsg, ...fileParts];
 
       const msg: ModelMessage = {
         role: "user",
@@ -272,70 +271,36 @@ export default function MessageInput({
     });
 
     let newHistory: ModelMessage[] = [];
+    let newMsg: ModelMessage;
+
+    const oldHistory: ModelMessage[] = messages.map((oldMsg) => {
+      return {
+        role: oldMsg.payload.role,
+        content: oldMsg.payload.content,
+      };
+    });
 
     if (uploadedFiles.length > 0) {
       const userMsg: CoreTextPart = {
         type: "text",
         text: message,
       };
-      const tempFiles: (CoreImagePart | CoreFilePart)[] = [];
 
-      uploadedFiles.map((file) => {
-        if (file.mimeType === "application/pdf") {
-          const tempFile: CoreFilePart = {
-            type: "file",
-            data: file.data,
-            mimeType: file.mimeType,
-          };
-          tempFiles.push(tempFile);
-        } else {
-          const tempImg: CoreImagePart = {
-            type: "image",
-            image: file.data,
-            mimeType: file.mimeType,
-          };
-          tempFiles.push(tempImg);
-        }
-      });
+      const fileParts = buildFileParts(uploadedFiles);
 
-      const content: CoreContent = [userMsg, ...tempFiles];
+      const content: CoreContent = [userMsg, ...fileParts];
 
-      const msg: ModelMessage = {
+      newMsg = {
         role: "user",
         content: content,
       };
-
-      const oldHistory: ModelMessage[] = [];
-
-      messages.map((m) => {
-        if (m.payload) {
-          oldHistory.push({
-            role: m.payload.role,
-            content: m.payload.content,
-          });
-        }
-      });
-
-      newHistory = [...oldHistory, msg];
     } else {
-      const msg: ModelMessage = {
+      newMsg = {
         role: "user",
         content: message,
       };
-
-      const oldHistory: ModelMessage[] = [];
-
-      messages.map((m) => {
-        if (m.payload) {
-          oldHistory.push({
-            role: m.payload.role,
-            content: m.payload.content,
-          });
-        }
-      });
-
-      newHistory = [...oldHistory, msg];
     }
+    newHistory = [...oldHistory, newMsg];
 
     try {
       await complete(
@@ -439,28 +404,27 @@ export default function MessageInput({
                 onClientUploadComplete={async (res) => {
                   // Do something with the response
                   console.log("Files: ", res);
+
                   const filesFormatted: {
                     name: string;
                     url: string;
                     size: number;
                     mimeType: string;
                     key: string;
-                  }[] = [];
-
-                  res.map((file) => {
-                    filesFormatted.push({
+                  }[] = res.map((file) => {
+                    return {
                       name: file.name,
                       url: file.ufsUrl,
                       size: file.size,
                       mimeType: file.type,
                       key: file.key,
-                    });
+                    };
                   });
 
-                  const tempFiles = await uploadImages({
+                  const files = await uploadImages({
                     files: filesFormatted,
                   });
-                  setUploadedFiles((prevFiles) => [...prevFiles, ...tempFiles]);
+                  setUploadedFiles((prevFiles) => [...prevFiles, ...files]);
                   // alert("Upload Completed");
                 }}
                 onUploadError={(error: Error) => {
