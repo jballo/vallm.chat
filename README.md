@@ -1,6 +1,6 @@
-# T∞.chat (T3.chat Clone)
+# vallm.chat
 
-T∞.chat is a chat app inspired by T3.chat, rebuilt for the T3 Chat Cloneathon. It’s designed to be easy to hack on, fun to use, and not fall over if you sneeze at it. Powered by modern serverless and frontend tools, but mostly powered by caffeine, stubbornness, and Theo's voice in a youtube video on the background.
+vallm.chat is a chat app inspired by T3.chat, rebuilt for the T3 Chat Cloneathon. It’s designed to be easy to hack on, fun to use, and not fall over if you sneeze at it. Powered by modern serverless and frontend tools, but mostly powered by caffeine, stubbornness, and Theo's voice in a youtube video on the background.
 
 ---
 
@@ -65,7 +65,6 @@ T∞.chat is a chat app inspired by T3.chat, rebuilt for the T3 Chat Cloneathon.
 
 - **Chat Message Editing/Regenerating**  
   Edit or regenerate previous messages for iterative conversations.
-
 
 ---
 
