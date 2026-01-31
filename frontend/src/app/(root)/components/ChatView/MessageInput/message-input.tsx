@@ -268,11 +268,6 @@ export default function MessageInput({
       modelId: selectedModel.id,
     });
 
-    await updateUsage({
-      usageId: usage._id,
-      credits: usage.messagesRemaining - 1,
-    });
-
     try {
       await complete(
         JSON.stringify({
@@ -282,6 +277,11 @@ export default function MessageInput({
           messageId: messageId,
         }),
       );
+
+      await updateUsage({
+        usageId: usage._id,
+        credits: usage.messagesRemaining - 1,
+      });
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") {
         // This is a user-initiated abort - should be handled as success
