@@ -200,76 +200,6 @@ export default function MessageInput({
 
     let chat_id: Id<"chats"> | null;
 
-    let history: ModelMessage[];
-
-    if (uploadedFiles.length > 0) {
-      const userMsg: CoreTextPart = {
-        type: "text",
-        text: message,
-      };
-      const fileParts = buildFileParts(uploadedFiles);
-
-      const content: CoreContent = [userMsg, ...fileParts];
-
-      const msg: ModelMessage = {
-        role: "user",
-        content: content,
-      };
-      history = [msg];
-    } else {
-      const msg: ModelMessage = {
-        role: "user",
-        content: message,
-      };
-      history = [msg];
-    }
-
-    if (!activeChat) {
-      const response = await fetch("/api/chats", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          user_id: user.id,
-          history,
-        }),
-      });
-
-      if (!response.ok) {
-        console.log("Failed to create chat");
-        return;
-      }
-
-      const result = await response.json();
-      chat_id = result.content as Id<"chats">;
-      console.log("Chat created...");
-    } else {
-      chat_id = activeChat.id;
-      console.log("Chat selected...");
-    }
-
-    const latestMessage: ModelMessage = {
-      role: "user",
-      content: message,
-    };
-
-    await saveUserMessage({
-      chatId: chat_id,
-      userMessage: latestMessage,
-      modelId: selectedModel.id,
-    });
-
-    const messageId = await initateAssistantMessage({
-      chatId: chat_id,
-      modelId: selectedModel.id,
-    });
-
-    await updateUsage({
-      usageId: usage._id,
-      credits: usage.messagesRemaining - 1,
-    });
-
     let newHistory: ModelMessage[] = [];
     let newMsg: ModelMessage;
 
@@ -301,6 +231,47 @@ export default function MessageInput({
       };
     }
     newHistory = [...oldHistory, newMsg];
+
+    if (!activeChat) {
+      const response = await fetch("/api/chats", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          user_id: user.id,
+          history: newHistory,
+        }),
+      });
+
+      if (!response.ok) {
+        console.log("Failed to create chat");
+        return;
+      }
+
+      const result = await response.json();
+      chat_id = result.content as Id<"chats">;
+      console.log("Chat created...");
+    } else {
+      chat_id = activeChat.id;
+      console.log("Chat selected...");
+    }
+
+    await saveUserMessage({
+      chatId: chat_id,
+      userMessage: newMsg,
+      modelId: selectedModel.id,
+    });
+
+    const messageId = await initateAssistantMessage({
+      chatId: chat_id,
+      modelId: selectedModel.id,
+    });
+
+    await updateUsage({
+      usageId: usage._id,
+      credits: usage.messagesRemaining - 1,
+    });
 
     try {
       await complete(
