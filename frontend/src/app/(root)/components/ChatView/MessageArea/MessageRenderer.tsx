@@ -2,14 +2,23 @@
 import React, { useEffect, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { oneDark } from "react-syntax-highlighter/dist/cjs/styles/prism";
+// import { oneDark, nord } from "react-syntax-highlighter/dist/cjs/styles/prism";
+import docco from 'react-syntax-highlighter/dist/esm/styles/hljs/docco';
+// import oneDark from 'react-syntax-highlighter/dist/esm/styles/hljs/atom-one-dark';
+
 import type { Components } from "react-markdown";
+import { useTheme } from "next-themes";
+import { atomOneDark } from "react-syntax-highlighter/dist/esm/styles/hljs";
 
 interface MessageRendererProps {
   content: string;
 }
 
 export function MessageRenderer({ content }: MessageRendererProps) {
+  const { theme } = useTheme();
+
+
+
   const components: Components = useMemo(
     () => ({
       code(props) {
@@ -18,14 +27,16 @@ export function MessageRenderer({ content }: MessageRendererProps) {
         const language = match ? match[1] : "";
         const isInline = !className;
 
+        const currentStyle = theme === "dark" ? atomOneDark : docco;
+
         if (!isInline && language) {
           return (
             <div className="my-3 rounded-lg overflow-hidden">
-              <div className="bg-[#362d3d] text-gray-300 px-3 py-2 text-xs font-mono border-b border-gray-700">
+              <div className="bg-secondary-foreground text-primary-foreground px-3 py-2 text-xs font-mono border-b border-gray-700">
                 {language}
               </div>
               <SyntaxHighlighter
-                style={oneDark}
+                style={currentStyle}
                 language={language}
                 PreTag="div"
                 customStyle={{
@@ -90,7 +101,9 @@ export function MessageRenderer({ content }: MessageRendererProps) {
         return <li className="leading-relaxed">{children}</li>;
       },
       strong({ children }) {
-        return <strong className="font-semibold text-white">{children}</strong>;
+        return (
+          <strong className="font-semibold text-foreground">{children}</strong>
+        );
       },
       blockquote({ children }) {
         return (
@@ -112,7 +125,7 @@ export function MessageRenderer({ content }: MessageRendererProps) {
         );
       },
     }),
-    []
+    [theme]
   );
 
   const renderedContent = useMemo(
@@ -177,7 +190,7 @@ export function MessageRendererDelayed({ content }: MessageRendererProps) {
                 {language}
               </div>
               <SyntaxHighlighter
-                style={oneDark}
+                style={atomOneDark}
                 language={language}
                 PreTag="div"
                 customStyle={{

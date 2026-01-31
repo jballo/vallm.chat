@@ -15,7 +15,7 @@ export function ModelDropdownButton({ selectedModel }: ModelDropdownProps) {
     return (
         <div
             // variant="ghost"
-            className="flex items-center gap-2 h-9 px-3 text-sm text-gray-300 hover:text-white hover:bg-[#2a2a2a] rounded-xl transition-colors duration-200 border border-[#3a3a3a] hover:border-[#3a1a2f]"
+            className="flex items-center gap-2 h-9 px-3 text-sm rounded-xl transition-colors duration-200 border-1"
         >
             <div className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-[#8b5cf6] rounded-full" />
