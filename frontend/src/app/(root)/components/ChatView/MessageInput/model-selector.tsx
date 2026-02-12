@@ -107,6 +107,13 @@ const allModels = [
     provider: "OpenRouter",
     capabilities: ["image", "search", "pdf"],
   },
+  {
+    id: "moonshotai/kimi-k2.5",
+    name: "Kimi K2.5",
+    icon: "gemini",
+    provider: "OpenRouter",
+    capabilities: [],
+  },
 ];
 const capabilityIcons: { [key: string]: React.FC<{ className?: string }> } = {
   multilingual: Languages,

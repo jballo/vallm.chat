@@ -37,52 +37,11 @@ export async function POST(req: Request) {
 
     let formattedHistory = history as ModelMessage[];
 
-    const fileSupportedLLMs = ["gemini-2.0-flash"];
-
-    if (fileSupportedLLMs.includes(model)) {
-      const noFilesFormat: {
-        role: "system" | "user" | "assistant" | "tool";
-        content: string;
-      }[] = [];
-      formattedHistory.map((message) => {
-        if (typeof message.content === "string") {
-          noFilesFormat.push({
-            role: message.role,
-            content: message.content,
-          });
-        } else {
-          noFilesFormat.push({
-            role: message.role,
-            content:
-              message.content[0].type === "text" ? message.content[0].text : "",
-          });
-        }
-      });
-
-      formattedHistory = noFilesFormat as ModelMessage[];
-    }
-
     const openrouter = createOpenRouter({
       apiKey: decryptedApiKey.apiKey,
     });
 
-    // const modelInvocation = fileSupportedLLMs.includes(model)
-    //   ? google(model)
-    //   : groq(model);
-
     let finalText = "";
-
-    // const result = streamText({
-    //   model: modelInvocation,
-    //   system: "You are a professional assistant",
-    //   messages: formattedHistory,
-    //   onChunk: ({ chunk }) => {
-    //     if (chunk.type === "text-delta") {
-    //       finalText += chunk.text;
-    //     }
-    //   },
-    //   abortSignal: req.signal, // for now, the abortSignal implementation will not be focused on
-    // });
 
     const result = streamText({
       model: openrouter.chat(model),
@@ -98,18 +57,6 @@ export async function POST(req: Request) {
 
     return result.toUIMessageStreamResponse({
       onFinish: async () => {
-        // console.log("message: ", messages);
-        // console.log(
-        //   JSON.stringify(messages, null, 2)
-        // );
-
-        // const assistantMessage = messages.find(m => m.role === 'assistant');
-
-        // const finalText = assistantMessage?.parts
-        //   .filter(p => p.type === 'text')
-        //   .map(p => p.text)
-        //   .join('') || '';
-
         await fetchMutation(
           api.messages.updateMessage,
           {
