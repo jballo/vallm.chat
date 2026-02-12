@@ -8,7 +8,7 @@ import { ArrowBigLeft, Check, Moon, Sun, Trash } from "lucide-react";
 import { useTheme } from "next-themes";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { use, useEffect, useState } from "react";
 import { api } from "../../../convex/_generated/api";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -22,6 +22,9 @@ export default function Settings() {
   const [groqKey, setGroqKey] = useState<string>("");
   const [groqKeyLoading, setGroqKeyLoading] = useState<boolean>(false);
   const [geminiKeyLoading, setGeminiKeyLoading] = useState<boolean>(false);
+  const [openRouterKey, setOpenRouterKey] = useState<string>("");
+  const [openRouterKeyLoading, setOpenRouterKeyLoading] =
+    useState<boolean>(false);
 
   const [providerAvailability, setProviderAvailability] = useState<{
     OpenRouter: boolean;
@@ -35,7 +38,7 @@ export default function Settings() {
 
   const getAllApiKeys = useQuery(
     api.keysMutations.getAllApiKeys,
-    !user || !isLoaded || !isSignedIn ? "skip" : {}
+    !user || !isLoaded || !isSignedIn ? "skip" : {},
   );
   const saveApiKey = useAction(api.keysActions.saveApiKey);
   const delteApiKey = useAction(api.keysActions.deleteApiKey);
@@ -43,7 +46,7 @@ export default function Settings() {
   useEffect(() => {
     if (getAllApiKeys) {
       const allAvailableProviders: string[] = getAllApiKeys.map(
-        (key) => key.provider
+        (key) => key.provider,
       );
 
       setProviderAvailability({
@@ -58,7 +61,6 @@ export default function Settings() {
     const newTheme = theme === "dark" ? "light" : "dark";
     setTheme(newTheme);
   };
-
 
   const onSubmitGeminiKey = async () => {
     console.log("Gemini Key Submitted");
@@ -110,6 +112,18 @@ export default function Settings() {
     });
 
     console.log("Result: ", result);
+  };
+
+  const onSubmitOpenRouterKey = async () => {
+    if (!user || !isLoaded || !isSignedIn) return;
+    const key = openRouterKey;
+    setOpenRouterKey("");
+    setOpenRouterKeyLoading(true);
+
+    const result = await saveApiKey({
+      provider: "OpenRouter",
+      apiKey: key,
+    });
   };
 
   return (
@@ -302,6 +316,56 @@ export default function Settings() {
                       onClick={async () => {
                         await deleteKey("Gemini");
                         setGeminiKeyLoading(false);
+                      }}
+                    >
+                      <Trash />
+                    </Button>
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <div className="flex flex-row justify-between pr-12">
+                    <h4>Open Router Key</h4>
+                    <p>...</p>
+                  </div>
+                  <div className="flex flex-row gap-1 items-center justify-between">
+                    {!providerAvailability.OpenRouter ? (
+                      <Input
+                        type="password"
+                        value={openRouterKey}
+                        placeholder=""
+                        onChange={(e) => setOpenRouterKey(e.target.value)}
+                      />
+                    ) : (
+                      <h3 className="text-md pr-10">Provided...</h3>
+                    )}
+                    <Button
+                      variant="ghost"
+                      className={cn("", {
+                        hidden: providerAvailability.OpenRouter,
+                      })}
+                      onClick={onSubmitOpenRouterKey}
+                    >
+                      {openRouterKeyLoading ? (
+                        <div
+                          className="inline-block h-5 w-5 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] text-primary motion-reduce:animate-[spin_1.5s_linear_infinite]"
+                          role="status"
+                        >
+                          <span className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]">
+                            Loading...
+                          </span>
+                        </div>
+                      ) : (
+                        <Check />
+                      )}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className={cn("", {
+                        hidden: !providerAvailability.OpenRouter,
+                      })}
+                      onClick={async () => {
+                        await deleteKey("OpenRouter");
+                        setOpenRouterKeyLoading(false);
                       }}
                     >
                       <Trash />

@@ -1,6 +1,6 @@
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { auth } from "@clerk/nextjs/server";
-import { CoreMessage, generateText } from "ai";
+import { ModelMessage, generateText } from "ai";
 import { NextResponse } from "next/server";
 import { api } from "../../../../convex/_generated/api";
 import { fetchMutation } from "convex/nextjs";
@@ -29,7 +29,7 @@ export async function POST(req: Request) {
       model: google("gemini-2.0-flash-lite"),
       system:
         "Generate a four word title that describes the message the user will provide. NO LONGER THAN FOUR WORDS",
-      messages: history as CoreMessage[],
+      messages: history as ModelMessage[],
     });
 
     console.log("Title: ", text);

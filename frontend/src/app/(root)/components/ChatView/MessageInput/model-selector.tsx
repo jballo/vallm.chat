@@ -34,50 +34,80 @@ interface ModelSelectorProps {
   }) => void;
 }
 
+// const allModels = [
+//   {
+//     id: "llama-3.1-8b-instant",
+//     name: "LLama 3.1 8b",
+//     icon: "llama",
+//     provider: "Groq",
+//     capabilities: ["multilingual", "speed"],
+//   },
+//   {
+//     id: "llama-3.3-70b-versatile",
+//     name: "Llama 3.3 70b",
+//     icon: "llama",
+//     provider: "Groq",
+//     capabilities: ["multilingual"],
+//   },
+//   {
+//     id: "mistral-saba-24b",
+//     name: "Mistral Saba 24B",
+//     icon: "Mistral",
+//     provider: "Groq",
+//     capabilities: ["multilingual"],
+//   },
+//   // {
+//   //   id: "deepseek-r1-distill-llama-70b",
+//   //   name: "DeepSeek R1 Distilled Llama",
+//   //   icon: "deepseek",
+//   //   provider: "OpenRouter",
+//   //   capabilities: ["reasoning", "speed"],
+//   // },
+//   {
+//     id: "gemini-2.0-flash",
+//     name: "Gemini 2.0 Flash",
+//     icon: "gemini",
+//     provider: "Gemini",
+//     capabilities: ["image", "search", "pdf"],
+//   },
+//   // {
+//   //     id: "gpt-imagegen",
+//   //     name: "GPT ImageGen",
+//   //     icon: "gpt",
+//   //     capabilities: ["vision"],
+//   // },
+// ];
+
 const allModels = [
   {
-    id: "llama-3.1-8b-instant",
-    name: "LLama 3.1 8b",
+    id: "meta-llama/llama-4-scout",
+    name: "LLama 4 Scout",
     icon: "llama",
-    provider: "Groq",
+    provider: "OpenRouter",
     capabilities: ["multilingual", "speed"],
   },
   {
-    id: "llama-3.3-70b-versatile",
-    name: "Llama 3.3 70b",
-    icon: "llama",
-    provider: "Groq",
-    capabilities: ["multilingual"],
-  },
-  {
-    id: "mistral-saba-24b",
-    name: "Mistral Saba 24B",
+    id: "mistralai/mistral-nemo",
+    name: "Mistral Nemo",
     icon: "Mistral",
-    provider: "Groq",
+    provider: "OpenRouter",
     capabilities: ["multilingual"],
   },
-  // {
-  //   id: "deepseek-r1-distill-llama-70b",
-  //   name: "DeepSeek R1 Distilled Llama",
-  //   icon: "deepseek",
-  //   provider: "OpenRouter",
-  //   capabilities: ["reasoning", "speed"],
-  // },
   {
-    id: "gemini-2.0-flash",
-    name: "Gemini 2.0 Flash",
+    id: "deepseek/deepseek-v3.2",
+    name: "DeepSeek V3.2",
+    icon: "deepseek",
+    provider: "OpenRouter",
+    capabilities: ["reasoning", "speed"],
+  },
+  {
+    id: "google/gemini-2.5-flash",
+    name: "Gemini 2.5 Flash",
     icon: "gemini",
-    provider: "Gemini",
+    provider: "OpenRouter",
     capabilities: ["image", "search", "pdf"],
   },
-  // {
-  //     id: "gpt-imagegen",
-  //     name: "GPT ImageGen",
-  //     icon: "gpt",
-  //     capabilities: ["vision"],
-  // },
 ];
-
 const capabilityIcons: { [key: string]: React.FC<{ className?: string }> } = {
   multilingual: Languages,
   speed: Zap,

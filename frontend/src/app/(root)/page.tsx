@@ -14,10 +14,10 @@ interface Model {
 
 export default function Home() {
   const [selectedModel, setSelectedModel] = useState<Model>({
-    id: "llama-3.1-8b-instant",
-    name: "LLama 3.1 8b",
+    id: "meta-llama/llama-4-scout",
+    name: "LLama 4 Scout",
     icon: "llama",
-    provider: "Groq",
+    provider: "OpenRouter",
     capabilities: ["multilingual", "speed"],
   });
 

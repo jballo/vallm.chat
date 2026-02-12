@@ -169,11 +169,7 @@ export default function MessageInput({
       (key) => key.provider,
     );
 
-    if (
-      !availableProviders.some(
-        (provider) => provider === selectedModel.provider,
-      )
-    ) {
+    if (!availableProviders.some((provider) => provider === "OpenRouter")) {
       console.log("No provider key provided!");
       toast.error("No API Key!", {
         description: "Please provide the appropriate api key.",
@@ -191,7 +187,7 @@ export default function MessageInput({
     }
 
     const encryptedApiKey = getAllApiKeys.find(
-      (key) => key.provider === selectedModel.provider,
+      (key) => key.provider === "OpenRouter",
     );
 
     if (!encryptedApiKey) return;
