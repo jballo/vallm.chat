@@ -5,9 +5,8 @@ import { fetchAction, fetchMutation } from "convex/nextjs";
 import { NextResponse } from "next/server";
 import { api } from "../../../../convex/_generated/api";
 import { consumeStream, ModelMessage, streamText } from "ai";
-import { createGroq } from "@ai-sdk/groq";
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { getAuthToken } from "@/app/auth";
+import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 
 export async function POST(req: Request) {
   try {
@@ -38,49 +37,14 @@ export async function POST(req: Request) {
 
     let formattedHistory = history as ModelMessage[];
 
-    const fileSupportedLLMs = ["gemini-2.0-flash"];
-
-    if (fileSupportedLLMs.includes(model)) {
-      const noFilesFormat: {
-        role: "system" | "user" | "assistant" | "tool";
-        content: string;
-      }[] = [];
-      formattedHistory.map((message) => {
-        if (typeof message.content === "string") {
-          noFilesFormat.push({
-            role: message.role,
-            content: message.content,
-          });
-        } else {
-          noFilesFormat.push({
-            role: message.role,
-            content:
-              message.content[0].type === "text" ? message.content[0].text : "",
-          });
-        }
-      });
-
-      formattedHistory = noFilesFormat as ModelMessage[];
-    }
-
-    const groq = createGroq({
-      baseURL: "https://api.groq.com/openai/v1",
+    const openrouter = createOpenRouter({
       apiKey: decryptedApiKey.apiKey,
     });
-
-    const google = createGoogleGenerativeAI({
-      baseURL: "https://generativelanguage.googleapis.com/v1beta",
-      apiKey: decryptedApiKey.apiKey,
-    });
-
-    const modelInvocation = fileSupportedLLMs.includes(model)
-      ? google(model)
-      : groq(model);
 
     let finalText = "";
 
     const result = streamText({
-      model: modelInvocation,
+      model: openrouter.chat(model),
       system: "You are a professional assistant",
       messages: formattedHistory,
       onChunk: ({ chunk }) => {
@@ -93,18 +57,6 @@ export async function POST(req: Request) {
 
     return result.toUIMessageStreamResponse({
       onFinish: async () => {
-        // console.log("message: ", messages);
-        // console.log(
-        //   JSON.stringify(messages, null, 2)
-        // );
-
-        // const assistantMessage = messages.find(m => m.role === 'assistant');
-
-        // const finalText = assistantMessage?.parts
-        //   .filter(p => p.type === 'text')
-        //   .map(p => p.text)
-        //   .join('') || '';
-
         await fetchMutation(
           api.messages.updateMessage,
           {
